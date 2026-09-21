@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && currentUserDoc().data.role == 'admin';
+    }
+
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function sameProfileFields() {
+      return request.resource.data.name == resource.data.name
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.authUid == resource.data.authUid;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin()
+        || (
+          isSelf(userId)
+          && request.resource.data.authUid == request.auth.uid
+          && request.resource.data.currentRewardTotal == 0
+          && request.auth.token.email != null
+          && exists(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email)))
+          && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.email == request.resource.data.email
+          && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.name == request.resource.data.name
+          && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.role == request.resource.data.role
+        );
+      allow update: if isAdmin()
+        || (
+          isSelf(userId)
+          && sameProfileFields()
+          && request.resource.data.currentRewardTotal >= resource.data.currentRewardTotal
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /pendingUsers/{emailKey} {
+      allow read: if isAdmin()
+        || (isSignedIn() && request.auth.token.email != null && lower(request.auth.token.email) == emailKey);
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin()
+        || (isSignedIn() && request.auth.token.email != null && lower(request.auth.token.email) == emailKey);
+    }
+
+    match /chores/{choreId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /rewardHistory/{periodId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /completions/{completionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin()
+        || (
+          isSignedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.reward is int
+          && request.resource.data.reward >= 0
+          && request.resource.data.choreId is string
+          && exists(/databases/$(database)/documents/chores/$(request.resource.data.choreId))
+          && get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.active == true
+        );
+      allow update, delete: if isAdmin();
+    }
+  }
+}
