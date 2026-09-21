@@ -21,6 +21,7 @@ data class SessionUiState(
     val isLoading: Boolean = true,
     val user: com.google.firebase.auth.FirebaseUser? = null,
     val profile: AppUser? = null,
+    val bootstrapError: String? = null,
 )
 
 class SessionViewModel(
@@ -36,12 +37,15 @@ class SessionViewModel(
                 if (firebaseUser == null) {
                     _uiState.value = SessionUiState(isLoading = false)
                 } else {
-                    runCatching { familyRepository.bootstrapUserProfile(firebaseUser.uid, firebaseUser.email) }
+                    val bootstrapError = runCatching {
+                        familyRepository.bootstrapUserProfile(firebaseUser.uid, firebaseUser.email)
+                    }.exceptionOrNull()?.localizedMessage
                     familyRepository.observeUser(firebaseUser.uid).collect { profile ->
                         _uiState.value = SessionUiState(
                             isLoading = false,
                             user = firebaseUser,
                             profile = profile,
+                            bootstrapError = bootstrapError,
                         )
                     }
                 }

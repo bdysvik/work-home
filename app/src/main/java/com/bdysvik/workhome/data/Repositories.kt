@@ -172,21 +172,28 @@ class FirebaseFamilyRepository(
                     "completedAt" to FieldValue.serverTimestamp(),
                 ),
             )
-            transaction.update(userRef, "currentRewardTotal", currentRewardTotal + chore.reward)
+            transaction.update(
+                userRef,
+                mapOf(
+                    "currentRewardTotal" to currentRewardTotal + chore.reward,
+                    "lastCompletionId" to completionRef.id,
+                ),
+            )
             null
         }.await()
     }
 
     override suspend fun resetRewards(admin: AppUser) {
         val periodId = currentPeriodId()
-        val userSnapshots = users.get().await().documents
-        val totals = userSnapshots.associate { snapshot ->
-            snapshot.id to (snapshot.getLong("currentRewardTotal") ?: 0L)
-        }
         val historyId = rewardHistoryId(periodId, System.currentTimeMillis())
 
-        firestore.batch().apply {
-            set(
+        firestore.runTransaction { transaction ->
+            val userSnapshots = transaction.get(users).documents
+            val totals = userSnapshots.associate { snapshot ->
+                snapshot.id to (snapshot.getLong("currentRewardTotal") ?: 0L)
+            }
+
+            transaction.set(
                 rewardHistory.document(historyId),
                 mapOf(
                     "periodId" to periodId,
@@ -196,9 +203,16 @@ class FirebaseFamilyRepository(
                 ),
             )
             userSnapshots.forEach { snapshot ->
-                update(snapshot.reference, "currentRewardTotal", 0L)
+                transaction.update(
+                    snapshot.reference,
+                    mapOf(
+                        "currentRewardTotal" to 0L,
+                        "lastCompletionId" to "",
+                    ),
+                )
             }
-        }.commit().await()
+            null
+        }.await()
     }
 
     private fun <T> documentFlow(
@@ -279,6 +293,7 @@ internal fun bootstrapProfileData(
         "role" to it.role.value,
         "authUid" to userId,
         "currentRewardTotal" to 0L,
+        "lastCompletionId" to "",
     )
 }
 

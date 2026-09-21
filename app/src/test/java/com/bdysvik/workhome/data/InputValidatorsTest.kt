@@ -28,6 +28,22 @@ class InputValidatorsTest {
     }
 
     @Test
+    fun validateCredentials_rejectsInvalidEmail() {
+        assertEquals(
+            "Enter a valid email address.",
+            InputValidators.validateCredentials("not-an-email", "hunter2", createAccount = false),
+        )
+    }
+
+    @Test
+    fun validatePendingUser_rejectsInvalidEmail() {
+        assertEquals(
+            "Enter a valid email for the invited user.",
+            InputValidators.validatePendingUser("Ava", "not-an-email"),
+        )
+    }
+
+    @Test
     fun bootstrapProfileData_returnsNullWithoutPendingInvite() {
         assertNull(bootstrapProfileData("uid-123", null))
     }
@@ -49,5 +65,6 @@ class InputValidatorsTest {
         assertEquals("admin", payload?.get("role"))
         assertEquals("uid-123", payload?.get("authUid"))
         assertEquals(0L, payload?.get("currentRewardTotal"))
+        assertEquals("", payload?.get("lastCompletionId"))
     }
 }

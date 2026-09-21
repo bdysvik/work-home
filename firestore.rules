@@ -26,6 +26,20 @@ service cloud.firestore {
         && request.resource.data.authUid == resource.data.authUid;
     }
 
+    function isValidCompletionBackedRewardUpdate(userId) {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let completionId = request.resource.data.lastCompletionId;
+      let completionPath = /databases/$(database)/documents/completions/$(completionId);
+      return isSelf(userId)
+        && sameProfileFields()
+        && completionId is string
+        && changedKeys.hasOnly(['currentRewardTotal', 'lastCompletionId'])
+        && !exists(completionPath)
+        && getAfter(completionPath).data.userId == request.auth.uid
+        && getAfter(completionPath).data.reward is int
+        && request.resource.data.currentRewardTotal == resource.data.currentRewardTotal + getAfter(completionPath).data.reward;
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isAdmin()
@@ -33,6 +47,7 @@ service cloud.firestore {
           isSelf(userId)
           && request.resource.data.authUid == request.auth.uid
           && request.resource.data.currentRewardTotal == 0
+          && request.resource.data.lastCompletionId == ""
           && request.auth.token.email != null
           && exists(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email)))
           && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.email == request.resource.data.email
@@ -40,11 +55,7 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.role == request.resource.data.role
         );
       allow update: if isAdmin()
-        || (
-          isSelf(userId)
-          && sameProfileFields()
-          && request.resource.data.currentRewardTotal >= resource.data.currentRewardTotal
-        );
+        || isValidCompletionBackedRewardUpdate(userId);
       allow delete: if isAdmin();
     }
 
@@ -77,6 +88,7 @@ service cloud.firestore {
           && request.resource.data.reward >= 0
           && request.resource.data.choreId is string
           && exists(/databases/$(database)/documents/chores/$(request.resource.data.choreId))
+          && request.resource.data.reward == get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.reward
           && get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.active == true
         );
       allow update, delete: if isAdmin();

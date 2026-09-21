@@ -1,7 +1,7 @@
 package com.bdysvik.workhome.data
 
 object InputValidators {
-    private val emailRegex = Regex("^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    private val emailRegex = Regex("""^[^@\s]+@[^@\s]+\.[^@\s]+$""")
 
     fun normalizeEmailKey(email: String): String = email.trim().lowercase()
 

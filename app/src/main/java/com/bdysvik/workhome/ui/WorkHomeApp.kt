@@ -99,7 +99,10 @@ fun WorkHomeApp(
                 onSubmit = loginViewModel::submit,
             )
         }
-        sessionState.profile == null -> MissingProfileScreen(onSignOut = sessionViewModel::signOut)
+        sessionState.profile == null -> MissingProfileScreen(
+            errorMessage = sessionState.bootstrapError,
+            onSignOut = sessionViewModel::signOut,
+        )
         else -> HomeScaffold(
             currentUser = sessionState.profile,
             appContainer = appContainer,
@@ -216,10 +219,14 @@ private fun SetupRequiredScreen() {
 }
 
 @Composable
-private fun MissingProfileScreen(onSignOut: () -> Unit) {
+private fun MissingProfileScreen(
+    errorMessage: String?,
+    onSignOut: () -> Unit,
+) {
     CenteredMessage(
         title = "Profile not found",
-        body = "Your Firebase account is signed in, but no matching Firestore family profile exists yet. Ask an admin to add an invite for your email, or manually create the first admin profile in Firestore.",
+        body = errorMessage
+            ?: "Your Firebase account is signed in, but no matching Firestore family profile exists yet. Ask an admin to add an invite for your email, or manually create the first admin profile in Firestore.",
         action = {
             Button(onClick = onSignOut) {
                 Text("Sign out")
