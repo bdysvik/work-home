@@ -61,7 +61,7 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /rewardHistory/{periodId} {
+    match /rewardHistory/{historyId} {
       allow read: if isSignedIn();
       allow create: if isAdmin();
       allow update, delete: if false;

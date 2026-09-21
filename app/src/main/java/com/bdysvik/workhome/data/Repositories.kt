@@ -1,6 +1,5 @@
 package com.bdysvik.workhome.data
 
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
@@ -100,19 +99,10 @@ class FirebaseFamilyRepository(
 
         val pendingRef = pendingUsers.document(normalizedEmail)
         val pendingSnapshot = pendingRef.get().await()
-        val pending = pendingSnapshot.toPendingUser() ?: return
+        val profileData = bootstrapProfileData(userId, pendingSnapshot.toPendingUser()) ?: return
 
         firestore.batch().apply {
-            set(
-                userRef,
-                mapOf(
-                    "name" to pending.name,
-                    "email" to pending.email,
-                    "role" to pending.role.value,
-                    "authUid" to userId,
-                    "currentRewardTotal" to 0L,
-                ),
-            )
+            set(userRef, profileData)
             delete(pendingRef)
         }.commit().await()
     }
@@ -153,7 +143,8 @@ class FirebaseFamilyRepository(
     }
 
     override suspend fun completeChore(chore: Chore, user: AppUser) {
-        val completionRef = completions.document("${currentPeriodId()}_${user.id}_${chore.id}")
+        val periodId = currentPeriodId()
+        val completionRef = completions.document("${periodId}_${user.id}_${chore.id}")
         val userRef = users.document(user.id)
         val choreRef = chores.document(chore.id)
 
@@ -176,7 +167,7 @@ class FirebaseFamilyRepository(
                 mapOf(
                     "userId" to user.id,
                     "choreId" to chore.id,
-                    "periodId" to currentPeriodId(),
+                    "periodId" to periodId,
                     "reward" to chore.reward,
                     "completedAt" to FieldValue.serverTimestamp(),
                 ),
@@ -187,17 +178,18 @@ class FirebaseFamilyRepository(
     }
 
     override suspend fun resetRewards(admin: AppUser) {
+        val periodId = currentPeriodId()
         val userSnapshots = users.get().await().documents
         val totals = userSnapshots.associate { snapshot ->
             snapshot.id to (snapshot.getLong("currentRewardTotal") ?: 0L)
         }
-        val historyId = "${currentPeriodId()}-${System.currentTimeMillis()}"
+        val historyId = rewardHistoryId(periodId, System.currentTimeMillis())
 
         firestore.batch().apply {
             set(
                 rewardHistory.document(historyId),
                 mapOf(
-                    "periodId" to currentPeriodId(),
+                    "periodId" to periodId,
                     "resetAt" to FieldValue.serverTimestamp(),
                     "resetBy" to admin.authUid,
                     "totals" to totals,
@@ -276,3 +268,21 @@ class FirebaseFamilyRepository(
     private fun currentPeriodId(): String =
         SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 }
+
+internal fun bootstrapProfileData(
+    userId: String,
+    pendingUser: PendingUser?,
+): Map<String, Any>? = pendingUser?.let {
+    mapOf(
+        "name" to it.name,
+        "email" to it.email,
+        "role" to it.role.value,
+        "authUid" to userId,
+        "currentRewardTotal" to 0L,
+    )
+}
+
+internal fun rewardHistoryId(
+    periodId: String,
+    timestampMillis: Long,
+): String = "$periodId-$timestampMillis"
