@@ -186,9 +186,9 @@ class FirebaseFamilyRepository(
     override suspend fun resetRewards(admin: AppUser) {
         val periodId = currentPeriodId()
         val historyId = rewardHistoryId(periodId, System.currentTimeMillis())
+        val userSnapshots = users.get().await().documents
 
         firestore.runTransaction { transaction ->
-            val userSnapshots = transaction.get(users).documents
             val totals = userSnapshots.associate { snapshot ->
                 snapshot.id to (snapshot.getLong("currentRewardTotal") ?: 0L)
             }

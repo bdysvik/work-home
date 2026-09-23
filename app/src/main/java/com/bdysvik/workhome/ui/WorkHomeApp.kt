@@ -84,6 +84,7 @@ fun WorkHomeApp(
     })
     val sessionState by sessionViewModel.uiState.collectAsStateWithLifecycle()
 
+    val profile = sessionState.profile
     when {
         sessionState.isLoading -> LoadingScreen()
         sessionState.user == null -> {
@@ -99,12 +100,12 @@ fun WorkHomeApp(
                 onSubmit = loginViewModel::submit,
             )
         }
-        sessionState.profile == null -> MissingProfileScreen(
+        profile == null -> MissingProfileScreen(
             errorMessage = sessionState.bootstrapError,
             onSignOut = sessionViewModel::signOut,
         )
         else -> HomeScaffold(
-            currentUser = sessionState.profile,
+            currentUser = profile,
             appContainer = appContainer,
             onSignOut = sessionViewModel::signOut,
         )
