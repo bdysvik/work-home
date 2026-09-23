@@ -18,6 +18,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -33,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -260,10 +262,21 @@ private fun LoginScreen(
     onSubmit: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        val loginTextFieldColors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            disabledTextColor = Color.White,
+        )
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("WorkHome", fontWeight = FontWeight.Bold)
             Text(if (state.createAccount) "Create invited account" else "Sign in")
-            OutlinedTextField(value = state.email, onValueChange = onEmailChange, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = state.email,
+                onValueChange = onEmailChange,
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = loginTextFieldColors,
+            )
             OutlinedTextField(
                 value = state.password,
                 onValueChange = onPasswordChange,
@@ -272,6 +285,7 @@ private fun LoginScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
+                colors = loginTextFieldColors,
             )
             state.error?.let { Text(it) }
             Button(onClick = onSubmit, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
