@@ -121,4 +121,9 @@ class InputValidatorsTest {
     fun choreTitle_fallsBackToLegacyDescription() {
         assertEquals("Legacy title", choreTitle(null, " Legacy title "))
     }
+
+    @Test
+    fun choreTitle_prefersNewTitleWhenBothFieldsExist() {
+        assertEquals("New title", choreTitle(" New title ", "Old description"))
+    }
 }

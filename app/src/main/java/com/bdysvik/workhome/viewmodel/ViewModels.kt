@@ -129,10 +129,15 @@ data class ChoresUiState(
     val templateRewardText: String = "",
     val editingTemplateId: String? = null,
     val templateFormSubmitting: Boolean = false,
-    val busyTemplateIds: Set<String> = emptySet(),
+    val busyTemplateActions: Map<String, TemplateRowAction> = emptyMap(),
     val choreSubmitting: Boolean = false,
     val message: String? = null,
 )
+
+enum class TemplateRowAction {
+    ACTIVATE,
+    DELETE,
+}
 
 class ChoresViewModel(
     private val familyRepository: FamilyRepository,
@@ -217,11 +222,16 @@ class ChoresViewModel(
     fun activateTemplate(template: ChoreTemplate) {
         if (!_uiState.value.currentUser.isAdmin) return
         viewModelScope.launch {
-            _uiState.update { it.copy(busyTemplateIds = it.busyTemplateIds + template.id, message = null) }
+            _uiState.update {
+                it.copy(
+                    busyTemplateActions = it.busyTemplateActions + (template.id to TemplateRowAction.ACTIVATE),
+                    message = null,
+                )
+            }
             val result = runCatching { familyRepository.activateChoreTemplate(template, _uiState.value.currentUser.authUid) }
             _uiState.update {
                 it.copy(
-                    busyTemplateIds = it.busyTemplateIds - template.id,
+                    busyTemplateActions = it.busyTemplateActions - template.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore activated." else null,
                 )
             }
@@ -231,14 +241,19 @@ class ChoresViewModel(
     fun deleteTemplate(template: ChoreTemplate) {
         if (!_uiState.value.currentUser.isAdmin) return
         viewModelScope.launch {
-            _uiState.update { it.copy(busyTemplateIds = it.busyTemplateIds + template.id, message = null) }
+            _uiState.update {
+                it.copy(
+                    busyTemplateActions = it.busyTemplateActions + (template.id to TemplateRowAction.DELETE),
+                    message = null,
+                )
+            }
             val result = runCatching { familyRepository.deleteChoreTemplate(template.id) }
             _uiState.update {
                 it.copy(
                     templateTitle = if (result.isSuccess && it.editingTemplateId == template.id) "" else it.templateTitle,
                     templateRewardText = if (result.isSuccess && it.editingTemplateId == template.id) "" else it.templateRewardText,
                     editingTemplateId = if (result.isSuccess && it.editingTemplateId == template.id) null else it.editingTemplateId,
-                    busyTemplateIds = it.busyTemplateIds - template.id,
+                    busyTemplateActions = it.busyTemplateActions - template.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Template deleted." else null,
                 )
             }

@@ -65,6 +65,7 @@ import com.bdysvik.workhome.viewmodel.LoginViewModel
 import com.bdysvik.workhome.viewmodel.RewardsUiState
 import com.bdysvik.workhome.viewmodel.RewardsViewModel
 import com.bdysvik.workhome.viewmodel.SessionViewModel
+import com.bdysvik.workhome.viewmodel.TemplateRowAction
 import com.bdysvik.workhome.viewmodel.UsersUiState
 import com.bdysvik.workhome.viewmodel.UsersViewModel
 
@@ -428,7 +429,7 @@ private fun ChoresScreen(
                     items(state.choreTemplates, key = { it.id }) { template ->
                         ChoreTemplateRow(
                             template = template,
-                            isBusy = template.id in state.busyTemplateIds,
+                            busyAction = state.busyTemplateActions[template.id],
                             onEditTemplate = onEditTemplate,
                             onActivateTemplate = onActivateTemplate,
                             onDeleteTemplate = { templateToDelete = it },
@@ -485,7 +486,7 @@ private fun ChoresScreen(
     }
 
     templateToDelete?.let { template ->
-        val templateDeleteBusy = template.id in state.busyTemplateIds
+        val templateDeleteBusy = state.busyTemplateActions[template.id] == TemplateRowAction.DELETE
         AlertDialog(
             onDismissRequest = {
                 if (!templateDeleteBusy) {
@@ -524,11 +525,12 @@ private fun ChoresScreen(
 @Composable
 private fun ChoreTemplateRow(
     template: ChoreTemplate,
-    isBusy: Boolean,
+    busyAction: TemplateRowAction?,
     onEditTemplate: (ChoreTemplate) -> Unit,
     onActivateTemplate: (ChoreTemplate) -> Unit,
     onDeleteTemplate: (ChoreTemplate) -> Unit,
 ) {
+    val isBusy = busyAction != null
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(template.title, fontWeight = FontWeight.Bold)
@@ -537,7 +539,7 @@ private fun ChoreTemplateRow(
                 onClick = { onActivateTemplate(template) },
                 enabled = !isBusy,
             ) {
-                Text(if (isBusy) "Working..." else "Activate")
+                Text(if (busyAction == TemplateRowAction.ACTIVATE) "Working..." else "Activate")
             }
             OutlinedButton(
                 onClick = { onEditTemplate(template) },
@@ -549,7 +551,7 @@ private fun ChoreTemplateRow(
                 onClick = { onDeleteTemplate(template) },
                 enabled = !isBusy,
             ) {
-                Text("Delete")
+                Text(if (busyAction == TemplateRowAction.DELETE) "Working..." else "Delete")
             }
         }
     }
