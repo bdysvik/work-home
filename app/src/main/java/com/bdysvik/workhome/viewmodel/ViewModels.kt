@@ -186,12 +186,20 @@ class ChoresViewModel(
     fun updateTemplateReward(value: String) = _uiState.update { it.copy(templateRewardText = value) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
     fun cancelTemplateEdit() {
-        if (!_uiState.value.currentUser.isAdmin || _uiState.value.templateFormSubmitting) return
+        if (
+            !_uiState.value.currentUser.isAdmin ||
+            _uiState.value.templateFormSubmitting ||
+            _uiState.value.busyTemplateActions.isNotEmpty()
+        ) return
         _uiState.update { it.copy(templateTitle = "", templateRewardText = "", editingTemplateId = null) }
     }
 
     fun editTemplate(template: ChoreTemplate) {
-        if (!_uiState.value.currentUser.isAdmin || _uiState.value.templateFormSubmitting) return
+        if (
+            !_uiState.value.currentUser.isAdmin ||
+            _uiState.value.templateFormSubmitting ||
+            _uiState.value.busyTemplateActions.isNotEmpty()
+        ) return
         _uiState.update {
             it.copy(
                 templateTitle = template.title,
@@ -203,7 +211,7 @@ class ChoresViewModel(
 
     fun saveTemplate() {
         val state = _uiState.value
-        if (!state.currentUser.isAdmin) return
+        if (!state.currentUser.isAdmin || state.templateFormSubmitting || state.busyTemplateActions.isNotEmpty()) return
         val error = InputValidators.validateChore(state.templateTitle, state.templateRewardText)
         if (error != null) {
             _uiState.update { it.copy(message = error) }
@@ -237,7 +245,11 @@ class ChoresViewModel(
     }
 
     fun activateTemplate(template: ChoreTemplate) {
-        if (!_uiState.value.currentUser.isAdmin || _uiState.value.busyTemplateActions[template.id] != null) return
+        if (
+            !_uiState.value.currentUser.isAdmin ||
+            _uiState.value.templateFormSubmitting ||
+            _uiState.value.busyTemplateActions[template.id] != null
+        ) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -256,7 +268,11 @@ class ChoresViewModel(
     }
 
     fun deleteTemplate(template: ChoreTemplate) {
-        if (!_uiState.value.currentUser.isAdmin || _uiState.value.busyTemplateActions[template.id] != null) return
+        if (
+            !_uiState.value.currentUser.isAdmin ||
+            _uiState.value.templateFormSubmitting ||
+            _uiState.value.busyTemplateActions[template.id] != null
+        ) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(

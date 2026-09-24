@@ -393,6 +393,8 @@ private fun ChoresScreen(
         }
     }
 
+    val templateFormEnabled = !state.templateFormSubmitting && state.busyTemplateActions.isEmpty()
+
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
@@ -409,7 +411,7 @@ private fun ChoresScreen(
                                 onValueChange = onTemplateTitleChange,
                                 label = { Text("Title") },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !state.templateFormSubmitting,
+                                enabled = templateFormEnabled,
                             )
                             OutlinedTextField(
                                 value = state.templateRewardText,
@@ -417,13 +419,13 @@ private fun ChoresScreen(
                                 label = { Text("Reward") },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                enabled = !state.templateFormSubmitting,
+                                enabled = templateFormEnabled,
                             )
-                            Button(onClick = onSaveTemplate, enabled = !state.templateFormSubmitting) {
+                            Button(onClick = onSaveTemplate, enabled = templateFormEnabled) {
                                 Text(if (state.editingTemplateId == null) "Save template" else "Update template")
                             }
                             if (state.editingTemplateId != null) {
-                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.templateFormSubmitting) {
+                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = templateFormEnabled) {
                                     Text("Cancel edit")
                                 }
                             }
@@ -442,6 +444,7 @@ private fun ChoresScreen(
                     items(state.choreTemplates, key = { it.id }) { template ->
                         ChoreTemplateRow(
                             template = template,
+                            templateFormSubmitting = state.templateFormSubmitting,
                             busyAction = state.busyTemplateActions[template.id],
                             onEditTemplate = onEditTemplate,
                             onActivateTemplate = onActivateTemplate,
@@ -577,12 +580,13 @@ private fun ChoresScreen(
 @Composable
 private fun ChoreTemplateRow(
     template: ChoreTemplate,
+    templateFormSubmitting: Boolean,
     busyAction: TemplateRowAction?,
     onEditTemplate: (ChoreTemplate) -> Unit,
     onActivateTemplate: (ChoreTemplate) -> Unit,
     onDeleteTemplate: (ChoreTemplate) -> Unit,
 ) {
-    val isBusy = busyAction != null
+    val isBusy = templateFormSubmitting || busyAction != null
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(template.title, fontWeight = FontWeight.Bold)
