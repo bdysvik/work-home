@@ -315,7 +315,7 @@ class FirebaseFamilyRepository(
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toChore(): Chore? {
-        val description = getString("title") ?: getString("description") ?: return null
+        val description = choreTitle(getString("title"), getString("description")) ?: return null
         return Chore(
             id = id,
             description = description,
@@ -342,6 +342,11 @@ internal fun bootstrapProfileData(
         "lastCompletionId" to "",
     )
 }
+
+internal fun choreTitle(
+    title: String?,
+    description: String?,
+): String? = title ?: description
 
 internal fun choreData(
     title: String,

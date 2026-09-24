@@ -423,8 +423,8 @@ private fun ChoresScreen(
                     items(state.choreTemplates, key = { it.id }) { template ->
                         ChoreTemplateRow(
                             template = template,
-                            submitting = state.templateActionTemplateId != null,
-                            isWorking = state.templateActionTemplateId == template.id,
+                            submitting = template.id in state.busyTemplateIds,
+                            isWorking = template.id in state.busyTemplateIds,
                             onEditTemplate = onEditTemplate,
                             onActivateTemplate = onActivateTemplate,
                             onDeleteTemplate = { templateToDelete = it },

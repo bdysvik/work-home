@@ -129,7 +129,7 @@ data class ChoresUiState(
     val templateRewardText: String = "",
     val editingTemplateId: String? = null,
     val templateFormSubmitting: Boolean = false,
-    val templateActionTemplateId: String? = null,
+    val busyTemplateIds: Set<String> = emptySet(),
     val choreSubmitting: Boolean = false,
     val message: String? = null,
 )
@@ -217,11 +217,11 @@ class ChoresViewModel(
     fun activateTemplate(template: ChoreTemplate) {
         if (!_uiState.value.currentUser.isAdmin) return
         viewModelScope.launch {
-            _uiState.update { it.copy(templateActionTemplateId = template.id, message = null) }
+            _uiState.update { it.copy(busyTemplateIds = it.busyTemplateIds + template.id, message = null) }
             val result = runCatching { familyRepository.activateChoreTemplate(template, _uiState.value.currentUser.authUid) }
             _uiState.update {
                 it.copy(
-                    templateActionTemplateId = null,
+                    busyTemplateIds = it.busyTemplateIds - template.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore activated." else null,
                 )
             }
@@ -231,14 +231,14 @@ class ChoresViewModel(
     fun deleteTemplate(template: ChoreTemplate) {
         if (!_uiState.value.currentUser.isAdmin) return
         viewModelScope.launch {
-            _uiState.update { it.copy(templateActionTemplateId = template.id, message = null) }
+            _uiState.update { it.copy(busyTemplateIds = it.busyTemplateIds + template.id, message = null) }
             val result = runCatching { familyRepository.deleteChoreTemplate(template.id) }
             _uiState.update {
                 it.copy(
                     templateTitle = if (result.isSuccess && it.editingTemplateId == template.id) "" else it.templateTitle,
                     templateRewardText = if (result.isSuccess && it.editingTemplateId == template.id) "" else it.templateRewardText,
                     editingTemplateId = if (result.isSuccess && it.editingTemplateId == template.id) null else it.editingTemplateId,
-                    templateActionTemplateId = null,
+                    busyTemplateIds = it.busyTemplateIds - template.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Template deleted." else null,
                 )
             }

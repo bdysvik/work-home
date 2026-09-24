@@ -116,4 +116,9 @@ class InputValidatorsTest {
         assertEquals("admin-1", payload["createdBy"])
         assertEquals(true, payload.containsKey("updatedAt"))
     }
+
+    @Test
+    fun choreTitle_fallsBackToLegacyDescription() {
+        assertEquals("Legacy title", choreTitle(null, "Legacy title"))
+    }
 }
