@@ -69,6 +69,7 @@ import com.bdysvik.workhome.viewmodel.SessionViewModel
 import com.bdysvik.workhome.viewmodel.TemplateRowAction
 import com.bdysvik.workhome.viewmodel.UsersUiState
 import com.bdysvik.workhome.viewmodel.UsersViewModel
+import java.time.LocalDate
 
 private object Routes {
     const val Chores = "chores"
@@ -371,6 +372,7 @@ private fun ChoresScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
     var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
+    val daysLeftInMonth = daysLeftInCurrentMonth()
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -401,6 +403,14 @@ private fun ChoresScreen(
             contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Total reward: ${currentUser.currentRewardTotal}")
+                    Text("Days left this month: $daysLeftInMonth")
+                    Text("Active chores", fontWeight = FontWeight.Bold)
+                }
+            }
+
             if (currentUser.isAdmin) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -454,13 +464,6 @@ private fun ChoresScreen(
                 }
             }
 
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Your total: ${currentUser.currentRewardTotal}")
-                    Text("Active chores", fontWeight = FontWeight.Bold)
-                }
-            }
-
             items(state.chores, key = { it.id }) { chore ->
                 val busyAction = state.busyChoreActions[chore.id]
                 val isOpen = chore.assignedToUserId.isBlank()
@@ -476,6 +479,8 @@ private fun ChoresScreen(
                                     Text(if (busyAction == ChoreRowAction.ASSIGN) "Assigning..." else "Assign to me")
                                 }
                             }
+
+                            internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
 
                             isAssignedToCurrentUser -> {
                                 Text("Assigned to you")
