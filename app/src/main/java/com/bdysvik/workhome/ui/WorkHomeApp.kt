@@ -58,6 +58,7 @@ import com.bdysvik.workhome.data.Chore
 import com.bdysvik.workhome.data.ChoreTemplate
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
+import com.bdysvik.workhome.viewmodel.ChoreRowAction
 import com.bdysvik.workhome.viewmodel.ChoresUiState
 import com.bdysvik.workhome.viewmodel.ChoresViewModel
 import com.bdysvik.workhome.viewmodel.LoginUiState
@@ -381,6 +382,13 @@ private fun ChoresScreen(
         }
     }
 
+    LaunchedEffect(choreToDelete?.id, state.chores) {
+        val choreId = choreToDelete?.id ?: return@LaunchedEffect
+        if (state.chores.none { it.id == choreId }) {
+            choreToDelete = null
+        }
+    }
+
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
@@ -447,16 +455,17 @@ private fun ChoresScreen(
             }
 
             items(state.chores, key = { it.id }) { chore ->
+                val busyAction = state.busyChoreActions[chore.id]
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(chore.title, fontWeight = FontWeight.Bold)
                         Text("Reward: ${chore.reward}")
-                        Button(onClick = { onCompleteChore(chore) }, enabled = !state.choreSubmitting) {
-                            Text("Complete for me")
+                        Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
+                            Text(if (busyAction == ChoreRowAction.COMPLETE) "Working..." else "Complete for me")
                         }
                         if (currentUser.isAdmin) {
-                            OutlinedButton(onClick = { choreToDelete = chore }, enabled = !state.choreSubmitting) {
-                                Text("Delete chore")
+                            OutlinedButton(onClick = { choreToDelete = chore }, enabled = busyAction == null) {
+                                Text(if (busyAction == ChoreRowAction.DELETE) "Working..." else "Delete chore")
                             }
                         }
                     }
@@ -466,23 +475,38 @@ private fun ChoresScreen(
     }
 
     choreToDelete?.let { chore ->
+        val choreDeleteBusy = state.busyChoreActions[chore.id] == ChoreRowAction.DELETE
         AlertDialog(
-            onDismissRequest = { choreToDelete = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDeleteChore(chore)
+            onDismissRequest = {
+                if (!choreDeleteBusy) {
                     choreToDelete = null
-                }) {
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onDeleteChore(chore) },
+                    enabled = !choreDeleteBusy,
+                ) {
                     Text("Delete")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { choreToDelete = null }) {
+                TextButton(
+                    onClick = { choreToDelete = null },
+                    enabled = !choreDeleteBusy,
+                ) {
                     Text("Cancel")
                 }
             },
             title = { Text("Delete chore?") },
-            text = { Text(chore.title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(chore.title)
+                    if (choreDeleteBusy) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
         )
     }
 

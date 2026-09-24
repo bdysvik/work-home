@@ -130,12 +130,17 @@ data class ChoresUiState(
     val editingTemplateId: String? = null,
     val templateFormSubmitting: Boolean = false,
     val busyTemplateActions: Map<String, TemplateRowAction> = emptyMap(),
-    val choreSubmitting: Boolean = false,
+    val busyChoreActions: Map<String, ChoreRowAction> = emptyMap(),
     val message: String? = null,
 )
 
 enum class TemplateRowAction {
     ACTIVATE,
+    DELETE,
+}
+
+enum class ChoreRowAction {
+    COMPLETE,
     DELETE,
 }
 
@@ -262,11 +267,16 @@ class ChoresViewModel(
 
     fun completeChore(chore: Chore) {
         viewModelScope.launch {
-            _uiState.update { it.copy(choreSubmitting = true, message = null) }
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions + (chore.id to ChoreRowAction.COMPLETE),
+                    message = null,
+                )
+            }
             val result = runCatching { familyRepository.completeChore(chore, _uiState.value.currentUser) }
             _uiState.update {
                 it.copy(
-                    choreSubmitting = false,
+                    busyChoreActions = it.busyChoreActions - chore.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Reward added." else null,
                 )
             }
@@ -275,11 +285,16 @@ class ChoresViewModel(
 
     fun deleteChore(chore: Chore) {
         viewModelScope.launch {
-            _uiState.update { it.copy(choreSubmitting = true, message = null) }
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions + (chore.id to ChoreRowAction.DELETE),
+                    message = null,
+                )
+            }
             val result = runCatching { familyRepository.deleteChore(chore.id) }
             _uiState.update {
                 it.copy(
-                    choreSubmitting = false,
+                    busyChoreActions = it.busyChoreActions - chore.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore deleted." else null,
                 )
             }
