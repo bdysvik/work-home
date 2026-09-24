@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -69,7 +70,10 @@ import com.bdysvik.workhome.viewmodel.SessionViewModel
 import com.bdysvik.workhome.viewmodel.TemplateRowAction
 import com.bdysvik.workhome.viewmodel.UsersUiState
 import com.bdysvik.workhome.viewmodel.UsersViewModel
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
+import kotlinx.coroutines.delay
 
 private object Routes {
     const val Chores = "chores"
@@ -372,7 +376,14 @@ private fun ChoresScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
     var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
-    val daysLeftInMonth = daysLeftInCurrentMonth(LocalDate.now())
+    val currentDate by produceState(initialValue = LocalDate.now()) {
+        while (true) {
+            val now = LocalDate.now()
+            value = now
+            delay(Duration.between(LocalDateTime.now(), now.plusDays(1).atStartOfDay()).toMillis().coerceAtLeast(1L))
+        }
+    }
+    val daysLeftInMonth = daysLeftInCurrentMonth(currentDate)
 
     LaunchedEffect(state.message) {
         state.message?.let {
