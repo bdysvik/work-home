@@ -14,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -408,26 +409,25 @@ private fun ChoresScreen(
                                     Text("Cancel edit")
                                 }
                             }
+                            if (state.templateSubmitting) {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
                         }
                     }
                 }
 
                 if (state.choreTemplates.isNotEmpty()) {
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("Templates", fontWeight = FontWeight.Bold)
-                                state.choreTemplates.forEach { template ->
-                                    ChoreTemplateRow(
-                                        template = template,
-                                        submitting = state.templateSubmitting,
-                                        onEditTemplate = onEditTemplate,
-                                        onActivateTemplate = onActivateTemplate,
-                                        onDeleteTemplate = { templateToDelete = it },
-                                    )
-                                }
-                            }
-                        }
+                        Text("Templates", fontWeight = FontWeight.Bold)
+                    }
+                    items(state.choreTemplates, key = { it.id }) { template ->
+                        ChoreTemplateRow(
+                            template = template,
+                            submitting = state.templateSubmitting,
+                            onEditTemplate = onEditTemplate,
+                            onActivateTemplate = onActivateTemplate,
+                            onDeleteTemplate = { templateToDelete = it },
+                        )
                     }
                 }
             }
