@@ -420,7 +420,7 @@ private fun ChoresScreen(
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Total reward: ${currentUser.currentRewardTotal}")
+                    Text("Your total reward: ${currentUser.currentRewardTotal}")
                     Text("Days left this month: $daysLeftInMonth")
                     Text("Active chores", fontWeight = FontWeight.Bold)
                 }
