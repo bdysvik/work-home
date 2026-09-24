@@ -372,7 +372,7 @@ private fun ChoresScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
     var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
-    val daysLeftInMonth = remember { daysLeftInCurrentMonth(LocalDate.now()) }
+    val daysLeftInMonth = daysLeftInCurrentMonth(LocalDate.now())
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -492,7 +492,6 @@ private fun ChoresScreen(
                             }
                         }
 
-                        internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
                         if (currentUser.isAdmin && !isOpen) {
                             OutlinedButton(onClick = { onResetAssignment(chore) }, enabled = busyAction == null) {
                                 Text(if (busyAction == ChoreRowAction.RESET) "Resetting..." else "Reset assignment")
@@ -581,6 +580,8 @@ private fun ChoresScreen(
         )
     }
 }
+
+internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
 
 @Composable
 private fun ChoreTemplateRow(
