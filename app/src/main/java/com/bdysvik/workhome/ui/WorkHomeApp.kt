@@ -38,8 +38,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -375,6 +373,13 @@ private fun ChoresScreen(
         }
     }
 
+    LaunchedEffect(templateToDelete?.id, state.choreTemplates) {
+        val templateId = templateToDelete?.id ?: return@LaunchedEffect
+        if (state.choreTemplates.none { it.id == templateId }) {
+            templateToDelete = null
+        }
+    }
+
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
@@ -423,8 +428,7 @@ private fun ChoresScreen(
                     items(state.choreTemplates, key = { it.id }) { template ->
                         ChoreTemplateRow(
                             template = template,
-                            submitting = template.id in state.busyTemplateIds,
-                            isWorking = template.id in state.busyTemplateIds,
+                            isBusy = template.id in state.busyTemplateIds,
                             onEditTemplate = onEditTemplate,
                             onActivateTemplate = onActivateTemplate,
                             onDeleteTemplate = { templateToDelete = it },
@@ -481,23 +485,38 @@ private fun ChoresScreen(
     }
 
     templateToDelete?.let { template ->
+        val templateDeleteBusy = template.id in state.busyTemplateIds
         AlertDialog(
-            onDismissRequest = { templateToDelete = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDeleteTemplate(template)
+            onDismissRequest = {
+                if (!templateDeleteBusy) {
                     templateToDelete = null
-                }) {
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onDeleteTemplate(template) },
+                    enabled = !templateDeleteBusy,
+                ) {
                     Text("Delete")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { templateToDelete = null }) {
+                TextButton(
+                    onClick = { templateToDelete = null },
+                    enabled = !templateDeleteBusy,
+                ) {
                     Text("Cancel")
                 }
             },
             title = { Text("Delete template?") },
-            text = { Text(template.title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(template.title)
+                    if (templateDeleteBusy) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
         )
     }
 }
@@ -505,8 +524,7 @@ private fun ChoresScreen(
 @Composable
 private fun ChoreTemplateRow(
     template: ChoreTemplate,
-    submitting: Boolean,
-    isWorking: Boolean,
+    isBusy: Boolean,
     onEditTemplate: (ChoreTemplate) -> Unit,
     onActivateTemplate: (ChoreTemplate) -> Unit,
     onDeleteTemplate: (ChoreTemplate) -> Unit,
@@ -517,22 +535,19 @@ private fun ChoreTemplateRow(
             Text("Reward: ${template.reward}")
             Button(
                 onClick = { onActivateTemplate(template) },
-                enabled = !submitting,
-                modifier = Modifier.semantics { contentDescription = "Activate template ${template.title}" },
+                enabled = !isBusy,
             ) {
-                Text(if (isWorking) "Working..." else "Activate")
+                Text(if (isBusy) "Working..." else "Activate")
             }
             OutlinedButton(
                 onClick = { onEditTemplate(template) },
-                enabled = !submitting,
-                modifier = Modifier.semantics { contentDescription = "Edit template ${template.title}" },
+                enabled = !isBusy,
             ) {
                 Text("Edit")
             }
             OutlinedButton(
                 onClick = { onDeleteTemplate(template) },
-                enabled = !submitting,
-                modifier = Modifier.semantics { contentDescription = "Delete template ${template.title}" },
+                enabled = !isBusy,
             ) {
                 Text("Delete")
             }
