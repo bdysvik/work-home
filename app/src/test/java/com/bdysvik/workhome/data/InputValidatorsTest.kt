@@ -102,4 +102,18 @@ class InputValidatorsTest {
         assertEquals("admin-1", payload["createdBy"])
         assertEquals(true, payload["active"])
     }
+
+    @Test
+    fun choreTemplateData_buildsTemplatePayload() {
+        val payload = choreTemplateData(
+            title = " Clean kitchen ",
+            reward = 20L,
+            createdBy = "admin-1",
+        )
+
+        assertEquals("Clean kitchen", payload["title"])
+        assertEquals(20L, payload["reward"])
+        assertEquals("admin-1", payload["createdBy"])
+        assertEquals(true, payload.containsKey("updatedAt"))
+    }
 }

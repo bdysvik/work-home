@@ -149,14 +149,7 @@ class FirebaseFamilyRepository(
     }
 
     override suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String) {
-        choreTemplates.add(
-            mapOf(
-                "title" to title.trim(),
-                "reward" to reward,
-                "createdBy" to createdBy,
-                "updatedAt" to FieldValue.serverTimestamp(),
-            ),
-        ).await()
+        choreTemplates.add(choreTemplateData(title, reward, createdBy)).await()
     }
 
     override suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long) {
@@ -354,11 +347,22 @@ internal fun choreData(
     title: String,
     reward: Long,
     createdBy: String,
+): Map<String, Any> = choreFields(title, reward, createdBy) + ("active" to true)
+
+internal fun choreTemplateData(
+    title: String,
+    reward: Long,
+    createdBy: String,
+): Map<String, Any> = choreFields(title, reward, createdBy) + ("updatedAt" to FieldValue.serverTimestamp())
+
+private fun choreFields(
+    title: String,
+    reward: Long,
+    createdBy: String,
 ): Map<String, Any> = mapOf(
     "title" to title.trim(),
     "reward" to reward,
     "createdBy" to createdBy,
-    "active" to true,
 )
 
 internal fun rewardHistoryId(
