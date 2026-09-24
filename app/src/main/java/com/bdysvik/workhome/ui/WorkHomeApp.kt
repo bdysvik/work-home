@@ -54,6 +54,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.bdysvik.workhome.AppContainer
 import com.bdysvik.workhome.data.AppUser
 import com.bdysvik.workhome.data.Chore
+import com.bdysvik.workhome.data.ChoreTemplate
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
 import com.bdysvik.workhome.viewmodel.ChoresUiState
@@ -176,7 +177,20 @@ private fun HomeScaffold(
                     ChoresViewModel(appContainer.familyRepository, currentUser)
                 })
                 val state by vm.uiState.collectAsStateWithLifecycle()
-                ChoresScreen(currentUser, state, vm::updateDescription, vm::updateReward, vm::addChore, vm::completeChore, vm::deleteChore, vm::clearMessage)
+                ChoresScreen(
+                    currentUser = currentUser,
+                    state = state,
+                    onTemplateTitleChange = vm::updateTemplateTitle,
+                    onTemplateRewardChange = vm::updateTemplateReward,
+                    onSaveTemplate = vm::saveTemplate,
+                    onEditTemplate = vm::editTemplate,
+                    onCancelTemplateEdit = vm::cancelTemplateEdit,
+                    onActivateTemplate = vm::activateTemplate,
+                    onDeleteTemplate = vm::deleteTemplate,
+                    onCompleteChore = vm::completeChore,
+                    onDeleteChore = vm::deleteChore,
+                    onClearMessage = vm::clearMessage,
+                )
             }
             composable(Routes.Rewards) {
                 val vm: RewardsViewModel = viewModel(factory = simpleFactory {
@@ -336,9 +350,13 @@ private fun LoginScreen(
 private fun ChoresScreen(
     currentUser: AppUser,
     state: ChoresUiState,
-    onDescriptionChange: (String) -> Unit,
-    onRewardChange: (String) -> Unit,
-    onAddChore: () -> Unit,
+    onTemplateTitleChange: (String) -> Unit,
+    onTemplateRewardChange: (String) -> Unit,
+    onSaveTemplate: () -> Unit,
+    onEditTemplate: (ChoreTemplate) -> Unit,
+    onCancelTemplateEdit: () -> Unit,
+    onActivateTemplate: (ChoreTemplate) -> Unit,
+    onDeleteTemplate: (ChoreTemplate) -> Unit,
     onCompleteChore: (Chore) -> Unit,
     onDeleteChore: (Chore) -> Unit,
     onClearMessage: () -> Unit,
@@ -358,17 +376,51 @@ private fun ChoresScreen(
             if (currentUser.isAdmin) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Add chore", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(value = state.description, onValueChange = onDescriptionChange, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = state.rewardText, onValueChange = onRewardChange, label = { Text("Reward") }, modifier = Modifier.fillMaxWidth())
-                        Button(onClick = onAddChore, enabled = !state.submitting) {
-                            Text(if (state.submitting) "Saving..." else "Add chore")
+                        Text(if (state.editingTemplateId == null) "Save chore template" else "Edit chore template", fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = state.templateTitle,
+                            onValueChange = onTemplateTitleChange,
+                            label = { Text("Title") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.templateRewardText,
+                            onValueChange = onTemplateRewardChange,
+                            label = { Text("Reward") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                        Button(onClick = onSaveTemplate, enabled = !state.submitting) {
+                            Text(if (state.submitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
+                        }
+                        if (state.editingTemplateId != null) {
+                            OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.submitting) {
+                                Text("Cancel edit")
+                            }
+                        }
+                    }
+                }
+
+                if (state.choreTemplates.isNotEmpty()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Templates", fontWeight = FontWeight.Bold)
+                            state.choreTemplates.forEach { template ->
+                                ChoreTemplateRow(
+                                    template = template,
+                                    submitting = state.submitting,
+                                    onEditTemplate = onEditTemplate,
+                                    onActivateTemplate = onActivateTemplate,
+                                    onDeleteTemplate = onDeleteTemplate,
+                                )
+                            }
                         }
                     }
                 }
             }
 
             Text("Your total: ${currentUser.currentRewardTotal}")
+            Text("Active chores", fontWeight = FontWeight.Bold)
 
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(state.chores, key = { it.id }) { chore ->
@@ -410,6 +462,31 @@ private fun ChoresScreen(
             title = { Text("Delete chore?") },
             text = { Text(chore.description) },
         )
+    }
+}
+
+@Composable
+private fun ChoreTemplateRow(
+    template: ChoreTemplate,
+    submitting: Boolean,
+    onEditTemplate: (ChoreTemplate) -> Unit,
+    onActivateTemplate: (ChoreTemplate) -> Unit,
+    onDeleteTemplate: (ChoreTemplate) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(template.title, fontWeight = FontWeight.Bold)
+            Text("Reward: ${template.reward}")
+            Button(onClick = { onActivateTemplate(template) }, enabled = !submitting) {
+                Text("Activate chore")
+            }
+            OutlinedButton(onClick = { onEditTemplate(template) }, enabled = !submitting) {
+                Text("Edit template")
+            }
+            OutlinedButton(onClick = { onDeleteTemplate(template) }, enabled = !submitting) {
+                Text("Delete template")
+            }
+        }
     }
 }
 

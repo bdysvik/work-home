@@ -62,6 +62,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /choreTemplates/{templateId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
     match /rewardHistory/{historyId} {
       allow read: if isSignedIn();
       allow create: if isAdmin();

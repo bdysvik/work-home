@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.bdysvik.workhome.data.AppUser
 import com.bdysvik.workhome.data.AuthRepository
 import com.bdysvik.workhome.data.Chore
+import com.bdysvik.workhome.data.ChoreTemplate
 import com.bdysvik.workhome.data.FamilyRepository
 import com.bdysvik.workhome.data.InputValidators
 import com.bdysvik.workhome.data.PendingUser
@@ -122,9 +123,11 @@ class LoginViewModel(
 
 data class ChoresUiState(
     val currentUser: AppUser,
+    val choreTemplates: List<ChoreTemplate> = emptyList(),
     val chores: List<Chore> = emptyList(),
-    val description: String = "",
-    val rewardText: String = "",
+    val templateTitle: String = "",
+    val templateRewardText: String = "",
+    val editingTemplateId: String? = null,
     val submitting: Boolean = false,
     val message: String? = null,
 )
@@ -137,6 +140,15 @@ class ChoresViewModel(
     val uiState: StateFlow<ChoresUiState> = _uiState.asStateFlow()
 
     init {
+        if (currentUser.isAdmin) {
+            viewModelScope.launch {
+                familyRepository.observeChoreTemplates()
+                    .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                    .collect { templates ->
+                        _uiState.update { it.copy(choreTemplates = templates) }
+                    }
+            }
+        }
         viewModelScope.launch {
             familyRepository.observeChores()
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
@@ -146,30 +158,79 @@ class ChoresViewModel(
         }
     }
 
-    fun updateDescription(value: String) = _uiState.update { it.copy(description = value) }
-    fun updateReward(value: String) = _uiState.update { it.copy(rewardText = value) }
+    fun updateTemplateTitle(value: String) = _uiState.update { it.copy(templateTitle = value) }
+    fun updateTemplateReward(value: String) = _uiState.update { it.copy(templateRewardText = value) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
+    fun cancelTemplateEdit() = _uiState.update { it.copy(templateTitle = "", templateRewardText = "", editingTemplateId = null) }
 
-    fun addChore() {
+    fun editTemplate(template: ChoreTemplate) {
+        _uiState.update {
+            it.copy(
+                templateTitle = template.title,
+                templateRewardText = template.reward.toString(),
+                editingTemplateId = template.id,
+            )
+        }
+    }
+
+    fun saveTemplate() {
         val state = _uiState.value
-        val error = InputValidators.validateChore(state.description, state.rewardText)
+        val error = InputValidators.validateChore(state.templateTitle, state.templateRewardText)
         if (error != null) {
             _uiState.update { it.copy(message = error) }
             return
         }
-        val reward = InputValidators.parseReward(state.rewardText) ?: return
+        val reward = InputValidators.parseReward(state.templateRewardText) ?: return
 
         viewModelScope.launch {
             _uiState.update { it.copy(submitting = true, message = null) }
             val result = runCatching {
-                familyRepository.addChore(state.description, reward, state.currentUser.authUid)
+                if (state.editingTemplateId == null) {
+                    familyRepository.addChoreTemplate(state.templateTitle, reward, state.currentUser.authUid)
+                } else {
+                    familyRepository.updateChoreTemplate(state.editingTemplateId, state.templateTitle, reward)
+                }
             }
             _uiState.update {
                 it.copy(
-                    description = if (result.isSuccess) "" else it.description,
-                    rewardText = if (result.isSuccess) "" else it.rewardText,
+                    templateTitle = if (result.isSuccess) "" else it.templateTitle,
+                    templateRewardText = if (result.isSuccess) "" else it.templateRewardText,
+                    editingTemplateId = if (result.isSuccess) null else it.editingTemplateId,
                     submitting = false,
-                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore added." else null,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) {
+                        if (state.editingTemplateId == null) "Template saved." else "Template updated."
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+    }
+
+    fun activateTemplate(template: ChoreTemplate) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(submitting = true, message = null) }
+            val result = runCatching { familyRepository.activateChoreTemplate(template, _uiState.value.currentUser.authUid) }
+            _uiState.update {
+                it.copy(
+                    submitting = false,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore activated." else null,
+                )
+            }
+        }
+    }
+
+    fun deleteTemplate(template: ChoreTemplate) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(submitting = true, message = null) }
+            val result = runCatching { familyRepository.deleteChoreTemplate(template.id) }
+            _uiState.update {
+                it.copy(
+                    templateTitle = if (result.isSuccess && it.editingTemplateId == template.id) "" else it.templateTitle,
+                    templateRewardText = if (result.isSuccess && it.editingTemplateId == template.id) "" else it.templateRewardText,
+                    editingTemplateId = if (result.isSuccess && it.editingTemplateId == template.id) null else it.editingTemplateId,
+                    submitting = false,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Template deleted." else null,
                 )
             }
         }

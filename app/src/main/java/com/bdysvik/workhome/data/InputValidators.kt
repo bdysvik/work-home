@@ -23,7 +23,7 @@ object InputValidators {
 
     fun validateChore(description: String, rewardText: String): String? {
         if (description.isBlank()) {
-            return "Enter a chore description."
+            return "Enter a chore title."
         }
         if (parseReward(rewardText) == null) {
             return "Reward must be a whole number greater than zero."

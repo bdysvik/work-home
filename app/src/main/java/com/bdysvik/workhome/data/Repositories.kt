@@ -50,11 +50,16 @@ interface FamilyRepository {
     fun observeUser(userId: String): Flow<AppUser?>
     fun observeUsers(): Flow<List<AppUser>>
     fun observePendingUsers(): Flow<List<PendingUser>>
+    fun observeChoreTemplates(): Flow<List<ChoreTemplate>>
     fun observeChores(): Flow<List<Chore>>
     suspend fun bootstrapUserProfile(userId: String, email: String?)
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
     suspend fun removeUser(userId: String)
+    suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String)
+    suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long)
+    suspend fun deleteChoreTemplate(templateId: String)
+    suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String)
     suspend fun addChore(description: String, reward: Long, createdBy: String)
     suspend fun deleteChore(choreId: String)
     suspend fun completeChore(chore: Chore, user: AppUser)
@@ -66,6 +71,7 @@ class FirebaseFamilyRepository(
 ) : FamilyRepository {
     private val users = firestore.collection("users")
     private val chores = firestore.collection("chores")
+    private val choreTemplates = firestore.collection("choreTemplates")
     private val rewardHistory = firestore.collection("rewardHistory")
     private val completions = firestore.collection("completions")
     private val pendingUsers = firestore.collection("pendingUsers")
@@ -84,6 +90,12 @@ class FirebaseFamilyRepository(
         pendingUsers.orderBy("email", Query.Direction.ASCENDING)
     ) { documents ->
         documents.mapNotNull { it.toPendingUser() }
+    }
+
+    override fun observeChoreTemplates(): Flow<List<ChoreTemplate>> = collectionFlow(
+        choreTemplates.orderBy("title", Query.Direction.ASCENDING)
+    ) { documents ->
+        documents.mapNotNull { it.toChoreTemplate() }
     }
 
     override fun observeChores(): Flow<List<Chore>> = collectionFlow(
@@ -136,9 +148,39 @@ class FirebaseFamilyRepository(
         users.document(userId).delete().await()
     }
 
+    override suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String) {
+        choreTemplates.add(
+            mapOf(
+                "title" to title.trim(),
+                "reward" to reward,
+                "createdBy" to createdBy,
+                "updatedAt" to FieldValue.serverTimestamp(),
+            ),
+        ).await()
+    }
+
+    override suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long) {
+        choreTemplates.document(templateId).update(
+            mapOf(
+                "title" to title.trim(),
+                "reward" to reward,
+                "updatedAt" to FieldValue.serverTimestamp(),
+            ),
+        ).await()
+    }
+
+    override suspend fun deleteChoreTemplate(templateId: String) {
+        choreTemplates.document(templateId).delete().await()
+    }
+
+    override suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String) {
+        addChore(description = template.title, reward = template.reward, createdBy = createdBy)
+    }
+
     override suspend fun addChore(description: String, reward: Long, createdBy: String) {
         chores.add(
             mapOf(
+                "title" to description.trim(),
                 "description" to description.trim(),
                 "reward" to reward,
                 "createdBy" to createdBy,
@@ -277,8 +319,18 @@ class FirebaseFamilyRepository(
         )
     }
 
+    private fun com.google.firebase.firestore.DocumentSnapshot.toChoreTemplate(): ChoreTemplate? {
+        val title = getString("title") ?: return null
+        return ChoreTemplate(
+            id = id,
+            title = title,
+            reward = getLong("reward") ?: 0L,
+            createdBy = getString("createdBy") ?: "",
+        )
+    }
+
     private fun com.google.firebase.firestore.DocumentSnapshot.toChore(): Chore? {
-        val description = getString("description") ?: return null
+        val description = getString("title") ?: getString("description") ?: return null
         return Chore(
             id = id,
             description = description,

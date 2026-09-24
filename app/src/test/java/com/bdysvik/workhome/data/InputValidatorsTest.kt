@@ -18,6 +18,19 @@ class InputValidatorsTest {
     }
 
     @Test
+    fun validateChore_acceptsTemplateTitleAndReward() {
+        assertNull(InputValidators.validateChore("Clean kitchen", "15"))
+    }
+
+    @Test
+    fun validateChore_rejectsBlankTitle() {
+        assertEquals(
+            "Enter a chore title.",
+            InputValidators.validateChore("", "15"),
+        )
+    }
+
+    @Test
     fun normalizeEmailKey_trimsAndLowercases() {
         assertEquals("parent@example.com", InputValidators.normalizeEmailKey(" Parent@Example.com "))
     }
