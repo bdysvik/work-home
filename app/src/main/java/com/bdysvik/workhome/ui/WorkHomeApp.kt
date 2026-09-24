@@ -461,11 +461,11 @@ private fun ChoresScreen(
                         Text(chore.title, fontWeight = FontWeight.Bold)
                         Text("Reward: ${chore.reward}")
                         Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
-                            Text(if (busyAction == ChoreRowAction.COMPLETE) "Working..." else "Complete for me")
+                            Text(if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me")
                         }
                         if (currentUser.isAdmin) {
                             OutlinedButton(onClick = { choreToDelete = chore }, enabled = busyAction == null) {
-                                Text(if (busyAction == ChoreRowAction.DELETE) "Working..." else "Delete chore")
+                                Text(if (busyAction == ChoreRowAction.DELETE) "Deleting..." else "Delete chore")
                             }
                         }
                     }
@@ -564,7 +564,7 @@ private fun ChoreTemplateRow(
                 onClick = { onActivateTemplate(template) },
                 enabled = !isBusy,
             ) {
-                Text(if (busyAction == TemplateRowAction.ACTIVATE) "Working..." else "Activate")
+                Text(if (busyAction == TemplateRowAction.ACTIVATE) "Activating..." else "Activate")
             }
             OutlinedButton(
                 onClick = { onEditTemplate(template) },
@@ -576,7 +576,7 @@ private fun ChoreTemplateRow(
                 onClick = { onDeleteTemplate(template) },
                 enabled = !isBusy,
             ) {
-                Text(if (busyAction == TemplateRowAction.DELETE) "Working..." else "Delete")
+                Text(if (busyAction == TemplateRowAction.DELETE) "Deleting..." else "Delete")
             }
         }
     }

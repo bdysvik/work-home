@@ -174,12 +174,12 @@ class ChoresViewModel(
     fun updateTemplateReward(value: String) = _uiState.update { it.copy(templateRewardText = value) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
     fun cancelTemplateEdit() {
-        if (!_uiState.value.currentUser.isAdmin) return
+        if (!_uiState.value.currentUser.isAdmin || _uiState.value.templateFormSubmitting) return
         _uiState.update { it.copy(templateTitle = "", templateRewardText = "", editingTemplateId = null) }
     }
 
     fun editTemplate(template: ChoreTemplate) {
-        if (!_uiState.value.currentUser.isAdmin) return
+        if (!_uiState.value.currentUser.isAdmin || _uiState.value.templateFormSubmitting) return
         _uiState.update {
             it.copy(
                 templateTitle = template.title,
