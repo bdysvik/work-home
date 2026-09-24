@@ -72,7 +72,7 @@ import com.bdysvik.workhome.viewmodel.UsersUiState
 import com.bdysvik.workhome.viewmodel.UsersViewModel
 import java.time.Duration
 import java.time.LocalDate
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import kotlinx.coroutines.delay
 
 private object Routes {
@@ -378,9 +378,13 @@ private fun ChoresScreen(
     var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
     val currentDate by produceState(initialValue = LocalDate.now()) {
         while (true) {
-            val now = LocalDate.now()
-            value = now
-            delay(Duration.between(LocalDateTime.now(), now.plusDays(1).atStartOfDay()).toMillis().coerceAtLeast(1L))
+            val now = ZonedDateTime.now()
+            value = now.toLocalDate()
+            delay(
+                Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone))
+                    .toMillis()
+                    .coerceAtLeast(1L),
+            )
         }
     }
     val daysLeftInMonth = daysLeftInCurrentMonth(currentDate)
