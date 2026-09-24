@@ -21,6 +21,11 @@ class WorkHomeAppTest {
     }
 
     @Test
+    fun daysLeftInCurrentMonth_handlesNonLeapYearFebruary() {
+        assertEquals(0, daysLeftInCurrentMonth(LocalDate.of(2027, 2, 28)))
+    }
+
+    @Test
     fun daysLeftInCurrentMonth_returnsZeroOnLastDayOfMonth() {
         assertEquals(0, daysLeftInCurrentMonth(LocalDate.of(2026, 9, 30)))
     }
