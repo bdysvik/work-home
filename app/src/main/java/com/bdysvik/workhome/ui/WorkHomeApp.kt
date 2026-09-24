@@ -37,8 +37,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -514,21 +514,21 @@ private fun ChoreTemplateRow(
             Button(
                 onClick = { onActivateTemplate(template) },
                 enabled = !submitting,
-                modifier = Modifier.semantics { contentDescription = "Activate template ${template.title}" },
+                modifier = Modifier.semantics { stateDescription = "Template ${template.title}" },
             ) {
                 Text("Activate chore")
             }
             OutlinedButton(
                 onClick = { onEditTemplate(template) },
                 enabled = !submitting,
-                modifier = Modifier.semantics { contentDescription = "Edit template ${template.title}" },
+                modifier = Modifier.semantics { stateDescription = "Template ${template.title}" },
             ) {
                 Text("Edit template")
             }
             OutlinedButton(
                 onClick = { onDeleteTemplate(template) },
                 enabled = !submitting,
-                modifier = Modifier.semantics { contentDescription = "Delete template ${template.title}" },
+                modifier = Modifier.semantics { stateDescription = "Template ${template.title}" },
             ) {
                 Text("Delete template")
             }

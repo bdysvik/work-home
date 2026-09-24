@@ -60,7 +60,7 @@ interface FamilyRepository {
     suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long)
     suspend fun deleteChoreTemplate(templateId: String)
     suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String)
-    suspend fun addChore(description: String, reward: Long, createdBy: String)
+    suspend fun addChore(title: String, reward: Long, createdBy: String)
     suspend fun deleteChore(choreId: String)
     suspend fun completeChore(chore: Chore, user: AppUser)
     suspend fun resetRewards(admin: AppUser)
@@ -174,11 +174,11 @@ class FirebaseFamilyRepository(
     }
 
     override suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String) {
-        addChore(description = template.title, reward = template.reward, createdBy = createdBy)
+        addChore(title = template.title, reward = template.reward, createdBy = createdBy)
     }
 
-    override suspend fun addChore(description: String, reward: Long, createdBy: String) {
-        chores.add(choreData(description, reward, createdBy)).await()
+    override suspend fun addChore(title: String, reward: Long, createdBy: String) {
+        chores.add(choreData(title, reward, createdBy)).await()
     }
 
     override suspend fun deleteChore(choreId: String) {
