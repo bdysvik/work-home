@@ -447,7 +447,7 @@ private fun ChoresScreen(
             items(state.chores, key = { it.id }) { chore ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(chore.description, fontWeight = FontWeight.Bold)
+                        Text(chore.title, fontWeight = FontWeight.Bold)
                         Text("Reward: ${chore.reward}")
                         Button(onClick = { onCompleteChore(chore) }, enabled = !state.choreSubmitting) {
                             Text("Complete for me")
@@ -480,7 +480,7 @@ private fun ChoresScreen(
                 }
             },
             title = { Text("Delete chore?") },
-            text = { Text(chore.description) },
+            text = { Text(chore.title) },
         )
     }
 

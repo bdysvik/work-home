@@ -119,6 +119,6 @@ class InputValidatorsTest {
 
     @Test
     fun choreTitle_fallsBackToLegacyDescription() {
-        assertEquals("Legacy title", choreTitle(null, "Legacy title"))
+        assertEquals("Legacy title", choreTitle(null, " Legacy title "))
     }
 }

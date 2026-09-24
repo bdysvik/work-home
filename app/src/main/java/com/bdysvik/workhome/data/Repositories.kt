@@ -101,7 +101,7 @@ class FirebaseFamilyRepository(
     override fun observeChores(): Flow<List<Chore>> = collectionFlow(
         chores.whereEqualTo("active", true)
     ) { documents ->
-        documents.mapNotNull { it.toChore() }.sortedBy { it.description }
+        documents.mapNotNull { it.toChore() }.sortedBy { it.title }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -315,10 +315,10 @@ class FirebaseFamilyRepository(
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toChore(): Chore? {
-        val description = choreTitle(getString("title"), getString("description")) ?: return null
+        val title = choreTitle(getString("title"), getString("description")) ?: return null
         return Chore(
             id = id,
-            description = description,
+            title = title,
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
@@ -346,7 +346,7 @@ internal fun bootstrapProfileData(
 internal fun choreTitle(
     title: String?,
     description: String?,
-): String? = title ?: description
+): String? = (title ?: description)?.trim()?.takeIf { it.isNotEmpty() }
 
 internal fun choreData(
     title: String,

@@ -37,7 +37,7 @@ data class ChoreTemplate(
 
 data class Chore(
     val id: String,
-    val description: String,
+    val title: String,
     val reward: Long,
     val createdBy: String,
     val active: Boolean,
