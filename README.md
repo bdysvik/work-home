@@ -19,7 +19,7 @@ WorkHome is a Kotlin Android family chores and rewards app built with Jetpack Co
 - **Backend:** Firebase Authentication + Cloud Firestore
 - **Collections:**
   - `users/{uid}` → `name`, `email`, `role`, `authUid`, `currentRewardTotal`
-  - `choreTemplates/{templateId}` → reusable admin-managed `title`, `reward`, `createdBy`
+  - `choreTemplates/{templateId}` → reusable admin-managed `title`, `reward`, `createdBy`, `updatedAt`
   - `chores/{choreId}` → active chore entry with `title`/`description`, `reward`, `createdBy`, `active`
   - `rewardHistory/{historyId}` → `periodId`, `resetAt`, `resetBy`, `totals`
   - `completions/{completionId}` → `userId`, `choreId`, `periodId`, `reward`, `completedAt`

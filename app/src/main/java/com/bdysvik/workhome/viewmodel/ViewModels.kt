@@ -161,9 +161,13 @@ class ChoresViewModel(
     fun updateTemplateTitle(value: String) = _uiState.update { it.copy(templateTitle = value) }
     fun updateTemplateReward(value: String) = _uiState.update { it.copy(templateRewardText = value) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
-    fun cancelTemplateEdit() = _uiState.update { it.copy(templateTitle = "", templateRewardText = "", editingTemplateId = null) }
+    fun cancelTemplateEdit() {
+        if (!_uiState.value.currentUser.isAdmin) return
+        _uiState.update { it.copy(templateTitle = "", templateRewardText = "", editingTemplateId = null) }
+    }
 
     fun editTemplate(template: ChoreTemplate) {
+        if (!_uiState.value.currentUser.isAdmin) return
         _uiState.update {
             it.copy(
                 templateTitle = template.title,
@@ -175,6 +179,7 @@ class ChoresViewModel(
 
     fun saveTemplate() {
         val state = _uiState.value
+        if (!state.currentUser.isAdmin) return
         val error = InputValidators.validateChore(state.templateTitle, state.templateRewardText)
         if (error != null) {
             _uiState.update { it.copy(message = error) }
@@ -208,6 +213,7 @@ class ChoresViewModel(
     }
 
     fun activateTemplate(template: ChoreTemplate) {
+        if (!_uiState.value.currentUser.isAdmin) return
         viewModelScope.launch {
             _uiState.update { it.copy(submitting = true, message = null) }
             val result = runCatching { familyRepository.activateChoreTemplate(template, _uiState.value.currentUser.authUid) }
@@ -221,6 +227,7 @@ class ChoresViewModel(
     }
 
     fun deleteTemplate(template: ChoreTemplate) {
+        if (!_uiState.value.currentUser.isAdmin) return
         viewModelScope.launch {
             _uiState.update { it.copy(submitting = true, message = null) }
             val result = runCatching { familyRepository.deleteChoreTemplate(template.id) }

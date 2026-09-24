@@ -31,6 +31,14 @@ class InputValidatorsTest {
     }
 
     @Test
+    fun validateChore_rejectsInvalidReward() {
+        assertEquals(
+            "Reward must be a whole number greater than zero.",
+            InputValidators.validateChore("Clean kitchen", "0"),
+        )
+    }
+
+    @Test
     fun normalizeEmailKey_trimsAndLowercases() {
         assertEquals("parent@example.com", InputValidators.normalizeEmailKey(" Parent@Example.com "))
     }

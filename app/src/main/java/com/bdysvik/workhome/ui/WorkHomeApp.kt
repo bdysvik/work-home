@@ -372,69 +372,79 @@ private fun ChoresScreen(
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             if (currentUser.isAdmin) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (state.editingTemplateId == null) "Save chore template" else "Edit chore template", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(
-                            value = state.templateTitle,
-                            onValueChange = onTemplateTitleChange,
-                            label = { Text("Title") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = state.templateRewardText,
-                            onValueChange = onTemplateRewardChange,
-                            label = { Text("Reward") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        )
-                        Button(onClick = onSaveTemplate, enabled = !state.submitting) {
-                            Text(if (state.submitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
-                        }
-                        if (state.editingTemplateId != null) {
-                            OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.submitting) {
-                                Text("Cancel edit")
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(if (state.editingTemplateId == null) "Save chore template" else "Edit chore template", fontWeight = FontWeight.Bold)
+                            OutlinedTextField(
+                                value = state.templateTitle,
+                                onValueChange = onTemplateTitleChange,
+                                label = { Text("Title") },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = state.templateRewardText,
+                                onValueChange = onTemplateRewardChange,
+                                label = { Text("Reward") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                            Button(onClick = onSaveTemplate, enabled = !state.submitting) {
+                                Text(if (state.submitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
+                            }
+                            if (state.editingTemplateId != null) {
+                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.submitting) {
+                                    Text("Cancel edit")
+                                }
                             }
                         }
                     }
                 }
 
                 if (state.choreTemplates.isNotEmpty()) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Templates", fontWeight = FontWeight.Bold)
-                            state.choreTemplates.forEach { template ->
-                                ChoreTemplateRow(
-                                    template = template,
-                                    submitting = state.submitting,
-                                    onEditTemplate = onEditTemplate,
-                                    onActivateTemplate = onActivateTemplate,
-                                    onDeleteTemplate = onDeleteTemplate,
-                                )
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("Templates", fontWeight = FontWeight.Bold)
+                                state.choreTemplates.forEach { template ->
+                                    ChoreTemplateRow(
+                                        template = template,
+                                        submitting = state.submitting,
+                                        onEditTemplate = onEditTemplate,
+                                        onActivateTemplate = onActivateTemplate,
+                                        onDeleteTemplate = onDeleteTemplate,
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            Text("Your total: ${currentUser.currentRewardTotal}")
-            Text("Active chores", fontWeight = FontWeight.Bold)
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Your total: ${currentUser.currentRewardTotal}")
+                    Text("Active chores", fontWeight = FontWeight.Bold)
+                }
+            }
 
-            LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(state.chores, key = { it.id }) { chore ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(chore.description, fontWeight = FontWeight.Bold)
-                            Text("Reward: ${chore.reward}")
-                            Button(onClick = { onCompleteChore(chore) }, enabled = !state.submitting) {
-                                Text("Complete for me")
-                            }
-                            if (currentUser.isAdmin) {
-                                OutlinedButton(onClick = { choreToDelete = chore }, enabled = !state.submitting) {
-                                    Text("Delete chore")
-                                }
+            items(state.chores, key = { it.id }) { chore ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(chore.description, fontWeight = FontWeight.Bold)
+                        Text("Reward: ${chore.reward}")
+                        Button(onClick = { onCompleteChore(chore) }, enabled = !state.submitting) {
+                            Text("Complete for me")
+                        }
+                        if (currentUser.isAdmin) {
+                            OutlinedButton(onClick = { choreToDelete = chore }, enabled = !state.submitting) {
+                                Text("Delete chore")
                             }
                         }
                     }
