@@ -37,6 +37,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -388,6 +390,7 @@ private fun ChoresScreen(
                                 onValueChange = onTemplateTitleChange,
                                 label = { Text("Title") },
                                 modifier = Modifier.fillMaxWidth(),
+                                enabled = !state.templateSubmitting,
                             )
                             OutlinedTextField(
                                 value = state.templateRewardText,
@@ -395,6 +398,7 @@ private fun ChoresScreen(
                                 label = { Text("Reward") },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = !state.templateSubmitting,
                             )
                             Button(onClick = onSaveTemplate, enabled = !state.templateSubmitting) {
                                 Text(if (state.templateSubmitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
@@ -512,20 +516,23 @@ private fun ChoreTemplateRow(
             Button(
                 onClick = { onActivateTemplate(template) },
                 enabled = !submitting,
+                modifier = Modifier.semantics { contentDescription = "Activate template ${template.title}" },
             ) {
-                Text("Activate ${template.title}")
+                Text("Activate")
             }
             OutlinedButton(
                 onClick = { onEditTemplate(template) },
                 enabled = !submitting,
+                modifier = Modifier.semantics { contentDescription = "Edit template ${template.title}" },
             ) {
-                Text("Edit ${template.title}")
+                Text("Edit")
             }
             OutlinedButton(
                 onClick = { onDeleteTemplate(template) },
                 enabled = !submitting,
+                modifier = Modifier.semantics { contentDescription = "Delete template ${template.title}" },
             ) {
-                Text("Delete ${template.title}")
+                Text("Delete")
             }
         }
     }
