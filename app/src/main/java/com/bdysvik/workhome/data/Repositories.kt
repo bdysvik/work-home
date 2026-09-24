@@ -87,24 +87,33 @@ class FirebaseFamilyRepository(
     }
 
     override fun observeChores(): Flow<List<Chore>> = collectionFlow(
-        chores.whereEqualTo("active", true).orderBy("description", Query.Direction.ASCENDING)
+        chores.whereEqualTo("active", true)
     ) { documents ->
-        documents.mapNotNull { it.toChore() }
+        documents.mapNotNull { it.toChore() }.sortedBy { it.description }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
         val normalizedEmail = email?.let(InputValidators::normalizeEmailKey) ?: return
         val userRef = users.document(userId)
-        if (userRef.get().await().exists()) return
+        if (runCatching { userRef.get().await().exists() }.getOrDefault(false)) return
 
         val pendingRef = pendingUsers.document(normalizedEmail)
-        val pendingSnapshot = pendingRef.get().await()
-        val profileData = bootstrapProfileData(userId, pendingSnapshot.toPendingUser()) ?: return
+        val pendingSnapshot = runCatching { pendingRef.get().await() }.getOrNull()
+        val pendingUser = pendingSnapshot?.takeIf { it.exists() }?.toPendingUser()
 
-        firestore.batch().apply {
-            set(userRef, profileData)
-            delete(pendingRef)
-        }.commit().await()
+        val profileData = mapOf(
+            "name" to (pendingUser?.name ?: email.substringBefore("@").replaceFirstChar { it.uppercase() }),
+            "email" to (pendingUser?.email ?: email.trim().lowercase()),
+            "role" to (pendingUser?.role?.value ?: UserRole.MEMBER.value),
+            "authUid" to userId,
+            "currentRewardTotal" to 0L,
+            "lastCompletionId" to "",
+        )
+
+        userRef.set(profileData).await()
+        if (pendingUser != null) {
+            runCatching { pendingRef.delete().await() }
+        }
     }
 
     override suspend fun addPendingUser(name: String, email: String, role: UserRole) {

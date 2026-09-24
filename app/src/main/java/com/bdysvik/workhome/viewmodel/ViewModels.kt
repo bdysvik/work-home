@@ -9,9 +9,11 @@ import com.bdysvik.workhome.data.FamilyRepository
 import com.bdysvik.workhome.data.InputValidators
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
@@ -40,14 +42,22 @@ class SessionViewModel(
                     val bootstrapError = runCatching {
                         familyRepository.bootstrapUserProfile(firebaseUser.uid, firebaseUser.email)
                     }.exceptionOrNull()?.localizedMessage
-                    familyRepository.observeUser(firebaseUser.uid).collect { profile ->
-                        _uiState.value = SessionUiState(
-                            isLoading = false,
-                            user = firebaseUser,
-                            profile = profile,
-                            bootstrapError = bootstrapError,
-                        )
-                    }
+                    familyRepository.observeUser(firebaseUser.uid)
+                        .catch { e ->
+                            _uiState.value = SessionUiState(
+                                isLoading = false,
+                                user = firebaseUser,
+                                bootstrapError = e.localizedMessage,
+                            )
+                        }
+                        .collect { profile ->
+                            _uiState.value = SessionUiState(
+                                isLoading = false,
+                                user = firebaseUser,
+                                profile = profile,
+                                bootstrapError = bootstrapError,
+                            )
+                        }
                 }
             }
         }
@@ -93,10 +103,17 @@ class LoginViewModel(
                     authRepository.signIn(state.email, state.password)
                 }
             }
+            val exception = result.exceptionOrNull()
+            val errorMessage = when {
+                exception == null -> null
+                state.createAccount && exception is FirebaseAuthUserCollisionException ->
+                    "This email is already registered in Firebase. Switch to 'Sign in' below and enter your password."
+                else -> exception.localizedMessage
+            }
             _uiState.update {
                 it.copy(
                     loading = false,
-                    error = result.exceptionOrNull()?.localizedMessage,
+                    error = errorMessage,
                 )
             }
         }
@@ -121,9 +138,11 @@ class ChoresViewModel(
 
     init {
         viewModelScope.launch {
-            familyRepository.observeChores().collect { chores ->
-                _uiState.update { it.copy(chores = chores) }
-            }
+            familyRepository.observeChores()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { chores ->
+                    _uiState.update { it.copy(chores = chores) }
+                }
         }
     }
 
@@ -201,14 +220,18 @@ class UsersViewModel(
 
     init {
         viewModelScope.launch {
-            familyRepository.observeUsers().collect { users ->
-                _uiState.update { it.copy(users = users) }
-            }
+            familyRepository.observeUsers()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { users ->
+                    _uiState.update { it.copy(users = users) }
+                }
         }
         viewModelScope.launch {
-            familyRepository.observePendingUsers().collect { pendingUsers ->
-                _uiState.update { it.copy(pendingUsers = pendingUsers) }
-            }
+            familyRepository.observePendingUsers()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { pendingUsers ->
+                    _uiState.update { it.copy(pendingUsers = pendingUsers) }
+                }
         }
     }
 

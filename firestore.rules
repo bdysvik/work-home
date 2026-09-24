@@ -42,29 +42,19 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isAdmin()
-        || (
-          isSelf(userId)
-          && request.resource.data.authUid == request.auth.uid
-          && request.resource.data.currentRewardTotal == 0
-          && request.resource.data.lastCompletionId == ""
-          && request.auth.token.email != null
-          && exists(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email)))
-          && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.email == request.resource.data.email
-          && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.name == request.resource.data.name
-          && get(/databases/$(database)/documents/pendingUsers/$(lower(request.auth.token.email))).data.role == request.resource.data.role
-        );
+      allow create: if isSelf(userId)
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.currentRewardTotal == 0
+        && request.resource.data.lastCompletionId == "";
       allow update: if isAdmin()
         || isValidCompletionBackedRewardUpdate(userId);
       allow delete: if isAdmin();
     }
 
     match /pendingUsers/{emailKey} {
-      allow read: if isAdmin()
-        || (isSignedIn() && request.auth.token.email != null && lower(request.auth.token.email) == emailKey);
+      allow read: if isSignedIn();
       allow create, update: if isAdmin();
-      allow delete: if isAdmin()
-        || (isSignedIn() && request.auth.token.email != null && lower(request.auth.token.email) == emailKey);
+      allow delete: if isSignedIn();
     }
 
     match /chores/{choreId} {
