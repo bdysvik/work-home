@@ -50,12 +50,17 @@ interface FamilyRepository {
     fun observeUser(userId: String): Flow<AppUser?>
     fun observeUsers(): Flow<List<AppUser>>
     fun observePendingUsers(): Flow<List<PendingUser>>
+    fun observeChoreTemplates(): Flow<List<ChoreTemplate>>
     fun observeChores(currentUser: AppUser): Flow<List<Chore>>
     suspend fun bootstrapUserProfile(userId: String, email: String?)
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
     suspend fun removeUser(userId: String)
-    suspend fun addChore(description: String, reward: Long, createdBy: String)
+    suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String)
+    suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long)
+    suspend fun deleteChoreTemplate(templateId: String)
+    suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String)
+    suspend fun addChore(title: String, reward: Long, createdBy: String)
     suspend fun assignChore(choreId: String, user: AppUser)
     suspend fun resetChoreAssignment(choreId: String)
     suspend fun deleteChore(choreId: String)
@@ -68,6 +73,7 @@ class FirebaseFamilyRepository(
 ) : FamilyRepository {
     private val users = firestore.collection("users")
     private val chores = firestore.collection("chores")
+    private val choreTemplates = firestore.collection("choreTemplates")
     private val rewardHistory = firestore.collection("rewardHistory")
     private val completions = firestore.collection("completions")
     private val pendingUsers = firestore.collection("pendingUsers")
@@ -88,6 +94,12 @@ class FirebaseFamilyRepository(
         documents.mapNotNull { it.toPendingUser() }
     }
 
+    override fun observeChoreTemplates(): Flow<List<ChoreTemplate>> = collectionFlow(
+        choreTemplates.orderBy("title", Query.Direction.ASCENDING)
+    ) { documents ->
+        documents.mapNotNull { it.toChoreTemplate() }
+    }
+
     override fun observeChores(currentUser: AppUser): Flow<List<Chore>> = collectionFlow(
         chores.whereEqualTo("active", true)
     ) { documents ->
@@ -95,7 +107,7 @@ class FirebaseFamilyRepository(
             .filter { chore ->
                 currentUser.isAdmin || chore.assignedToUserId.isBlank() || chore.assignedToUserId == currentUser.authUid
             }
-            .sortedBy { it.description }
+            .sortedBy { it.title }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -142,16 +154,30 @@ class FirebaseFamilyRepository(
         users.document(userId).delete().await()
     }
 
-    override suspend fun addChore(description: String, reward: Long, createdBy: String) {
-        chores.add(
+    override suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String) {
+        choreTemplates.add(choreTemplateData(title, reward, createdBy)).await()
+    }
+
+    override suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long) {
+        choreTemplates.document(templateId).update(
             mapOf(
-                "description" to description.trim(),
+                "title" to title.trim(),
                 "reward" to reward,
-                "createdBy" to createdBy,
-                "active" to true,
-                "assignedTo" to "",
+                "updatedAt" to FieldValue.serverTimestamp(),
             ),
         ).await()
+    }
+
+    override suspend fun deleteChoreTemplate(templateId: String) {
+        choreTemplates.document(templateId).delete().await()
+    }
+
+    override suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String) {
+        addChore(title = template.title, reward = template.reward, createdBy = createdBy)
+    }
+
+    override suspend fun addChore(title: String, reward: Long, createdBy: String) {
+        chores.add(choreData(title, reward, createdBy)).await()
     }
 
     override suspend fun assignChore(choreId: String, user: AppUser) {
@@ -183,7 +209,6 @@ class FirebaseFamilyRepository(
             if (!active) {
                 throw IllegalStateException("This chore is no longer active.")
             }
-
             transaction.update(choreRef, "assignedTo", "")
             null
         }.await()
@@ -323,11 +348,21 @@ class FirebaseFamilyRepository(
         )
     }
 
+    private fun com.google.firebase.firestore.DocumentSnapshot.toChoreTemplate(): ChoreTemplate? {
+        val title = choreTitle(getString("title"), null) ?: return null
+        return ChoreTemplate(
+            id = id,
+            title = title,
+            reward = getLong("reward") ?: 0L,
+            createdBy = getString("createdBy") ?: "",
+        )
+    }
+
     private fun com.google.firebase.firestore.DocumentSnapshot.toChore(): Chore? {
-        val description = getString("description") ?: return null
+        val title = choreTitle(getString("title"), getString("description")) ?: return null
         return Chore(
             id = id,
-            description = description,
+            title = title,
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
@@ -352,6 +387,37 @@ internal fun bootstrapProfileData(
         "lastCompletionId" to "",
     )
 }
+
+internal fun choreTitle(
+    title: String?,
+    description: String?,
+): String? = title?.trim()?.takeIf { it.isNotEmpty() }
+    ?: description?.trim()?.takeIf { it.isNotEmpty() }
+
+internal fun choreData(
+    title: String,
+    reward: Long,
+    createdBy: String,
+): Map<String, Any> = choreFields(title, reward, createdBy) + mapOf(
+    "active" to true,
+    "assignedTo" to "",
+)
+
+internal fun choreTemplateData(
+    title: String,
+    reward: Long,
+    createdBy: String,
+): Map<String, Any> = choreFields(title, reward, createdBy) + ("updatedAt" to FieldValue.serverTimestamp())
+
+private fun choreFields(
+    title: String,
+    reward: Long,
+    createdBy: String,
+): Map<String, Any> = mapOf(
+    "title" to title.trim(),
+    "reward" to reward,
+    "createdBy" to createdBy,
+)
 
 internal fun rewardHistoryId(
     periodId: String,

@@ -6,8 +6,8 @@ WorkHome is a Kotlin Android family chores and rewards app built with Jetpack Co
 
 - Email/password sign-in and invited-account creation
 - Shared active chores list with per-user completion tracking
+- Admin-only chore template management with one-tap activation into active chores plus active-chore deletion
 - Open chores can be self-assigned, and admins can reset assignments
-- Admin-only chore creation and deletion
 - Admin-only family user invitation management
 - Rewards leaderboard with admin reset + reward history archiving
 - Firestore security rules for role-based access
@@ -20,7 +20,8 @@ WorkHome is a Kotlin Android family chores and rewards app built with Jetpack Co
 - **Backend:** Firebase Authentication + Cloud Firestore
 - **Collections:**
   - `users/{uid}` → `name`, `email`, `role`, `authUid`, `currentRewardTotal`
-  - `chores/{choreId}` → `description`, `reward`, `createdBy`, `active`, `assignedTo`
+  - `choreTemplates/{templateId}` → reusable admin-managed `title`, `reward`, `createdBy`, `updatedAt`
+  - `chores/{choreId}` → active chore entry with `title`, `reward`, `createdBy`, `active`, `assignedTo` (the app still reads older legacy records that only have `description`)
   - `rewardHistory/{historyId}` → `periodId`, `resetAt`, `resetBy`, `totals`
   - `completions/{completionId}` → `userId`, `choreId`, `periodId`, `reward`, `completedAt`
   - `pendingUsers/{normalizedEmail}` → helper collection for admin-created invites before a user claims an account

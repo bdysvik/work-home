@@ -76,6 +76,10 @@ service cloud.firestore {
       allow update: if isAdmin() || isValidSelfAssignment();
     }
 
+    match /choreTemplates/{templateId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
     match /rewardHistory/{historyId} {
       allow read: if isSignedIn();
       allow create: if isAdmin();

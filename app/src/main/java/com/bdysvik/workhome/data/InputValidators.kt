@@ -21,9 +21,9 @@ object InputValidators {
 
     fun parseReward(rewardText: String): Long? = rewardText.trim().toLongOrNull()?.takeIf { it > 0 }
 
-    fun validateChore(description: String, rewardText: String): String? {
-        if (description.isBlank()) {
-            return "Enter a chore description."
+    fun validateChore(title: String, rewardText: String): String? {
+        if (title.isBlank()) {
+            return "Enter a chore title."
         }
         if (parseReward(rewardText) == null) {
             return "Reward must be a whole number greater than zero."

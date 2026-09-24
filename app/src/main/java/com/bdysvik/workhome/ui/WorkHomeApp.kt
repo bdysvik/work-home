@@ -14,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -54,8 +55,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.bdysvik.workhome.AppContainer
 import com.bdysvik.workhome.data.AppUser
 import com.bdysvik.workhome.data.Chore
+import com.bdysvik.workhome.data.ChoreTemplate
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
+import com.bdysvik.workhome.viewmodel.ChoreRowAction
 import com.bdysvik.workhome.viewmodel.ChoresUiState
 import com.bdysvik.workhome.viewmodel.ChoresViewModel
 import com.bdysvik.workhome.viewmodel.LoginUiState
@@ -63,6 +66,7 @@ import com.bdysvik.workhome.viewmodel.LoginViewModel
 import com.bdysvik.workhome.viewmodel.RewardsUiState
 import com.bdysvik.workhome.viewmodel.RewardsViewModel
 import com.bdysvik.workhome.viewmodel.SessionViewModel
+import com.bdysvik.workhome.viewmodel.TemplateRowAction
 import com.bdysvik.workhome.viewmodel.UsersUiState
 import com.bdysvik.workhome.viewmodel.UsersViewModel
 
@@ -179,9 +183,13 @@ private fun HomeScaffold(
                 ChoresScreen(
                     currentUser = currentUser,
                     state = state,
-                    onDescriptionChange = vm::updateDescription,
-                    onRewardChange = vm::updateReward,
-                    onAddChore = vm::addChore,
+                    onTemplateTitleChange = vm::updateTemplateTitle,
+                    onTemplateRewardChange = vm::updateTemplateReward,
+                    onSaveTemplate = vm::saveTemplate,
+                    onEditTemplate = vm::editTemplate,
+                    onCancelTemplateEdit = vm::cancelTemplateEdit,
+                    onActivateTemplate = vm::activateTemplate,
+                    onDeleteTemplate = vm::deleteTemplate,
                     onAssignChore = vm::assignChore,
                     onCompleteChore = vm::completeChore,
                     onResetAssignment = vm::resetChoreAssignment,
@@ -347,9 +355,13 @@ private fun LoginScreen(
 private fun ChoresScreen(
     currentUser: AppUser,
     state: ChoresUiState,
-    onDescriptionChange: (String) -> Unit,
-    onRewardChange: (String) -> Unit,
-    onAddChore: () -> Unit,
+    onTemplateTitleChange: (String) -> Unit,
+    onTemplateRewardChange: (String) -> Unit,
+    onSaveTemplate: () -> Unit,
+    onEditTemplate: (ChoreTemplate) -> Unit,
+    onCancelTemplateEdit: () -> Unit,
+    onActivateTemplate: (ChoreTemplate) -> Unit,
+    onDeleteTemplate: (ChoreTemplate) -> Unit,
     onAssignChore: (Chore) -> Unit,
     onCompleteChore: (Chore) -> Unit,
     onResetAssignment: (Chore) -> Unit,
@@ -358,6 +370,7 @@ private fun ChoresScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
+    var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -366,59 +379,123 @@ private fun ChoresScreen(
         }
     }
 
+    LaunchedEffect(templateToDelete?.id, state.choreTemplates) {
+        val templateId = templateToDelete?.id ?: return@LaunchedEffect
+        if (state.choreTemplates.none { it.id == templateId }) {
+            templateToDelete = null
+        }
+    }
+
+    LaunchedEffect(choreToDelete?.id, state.chores) {
+        val choreId = choreToDelete?.id ?: return@LaunchedEffect
+        if (state.chores.none { it.id == choreId }) {
+            choreToDelete = null
+        }
+    }
+
+    val templateFormEnabled = !state.templateFormSubmitting && state.busyTemplateActions.isEmpty()
+
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             if (currentUser.isAdmin) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Add chore", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(value = state.description, onValueChange = onDescriptionChange, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = state.rewardText, onValueChange = onRewardChange, label = { Text("Reward") }, modifier = Modifier.fillMaxWidth())
-                        Button(onClick = onAddChore, enabled = !state.submitting) {
-                            Text(if (state.submitting) "Saving..." else "Add chore")
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(if (state.editingTemplateId == null) "Save chore template" else "Edit chore template", fontWeight = FontWeight.Bold)
+                            OutlinedTextField(
+                                value = state.templateTitle,
+                                onValueChange = onTemplateTitleChange,
+                                label = { Text("Title") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = templateFormEnabled,
+                            )
+                            OutlinedTextField(
+                                value = state.templateRewardText,
+                                onValueChange = onTemplateRewardChange,
+                                label = { Text("Reward") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = templateFormEnabled,
+                            )
+                            Button(onClick = onSaveTemplate, enabled = templateFormEnabled) {
+                                Text(if (state.editingTemplateId == null) "Save template" else "Update template")
+                            }
+                            if (state.editingTemplateId != null) {
+                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = templateFormEnabled) {
+                                    Text("Cancel edit")
+                                }
+                            }
+                            if (state.templateFormSubmitting) {
+                                Text("Saving template...")
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
                         }
+                    }
+                }
+
+                if (state.choreTemplates.isNotEmpty()) {
+                    item {
+                        Text("Templates", fontWeight = FontWeight.Bold)
+                    }
+                    items(state.choreTemplates, key = { it.id }) { template ->
+                        ChoreTemplateRow(
+                            template = template,
+                            templateFormSubmitting = state.templateFormSubmitting,
+                            busyAction = state.busyTemplateActions[template.id],
+                            onEditTemplate = onEditTemplate,
+                            onActivateTemplate = onActivateTemplate,
+                            onDeleteTemplate = { templateToDelete = it },
+                        )
                     }
                 }
             }
 
-            Text("Your total: ${currentUser.currentRewardTotal}")
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Your total: ${currentUser.currentRewardTotal}")
+                    Text("Active chores", fontWeight = FontWeight.Bold)
+                }
+            }
 
-            LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(state.chores, key = { it.id }) { chore ->
-                    val isOpen = chore.assignedToUserId.isBlank()
-                    val isAssignedToCurrentUser = chore.assignedToUserId == currentUser.authUid
-                    val assigneeName = state.usersByAuthUid[chore.assignedToUserId]
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(chore.description, fontWeight = FontWeight.Bold)
-                            Text("Reward: ${chore.reward}")
-                            when {
-                                isOpen -> {
-                                    Button(onClick = { onAssignChore(chore) }, enabled = !state.submitting) {
-                                        Text("Assign to me")
-                                    }
-                                }
-
-                                isAssignedToCurrentUser -> {
-                                    Text("Assigned to you")
-                                    Button(onClick = { onCompleteChore(chore) }, enabled = !state.submitting) {
-                                        Text("Complete for me")
-                                    }
-                                }
-
-                                currentUser.isAdmin -> {
-                                    Text("Assigned to ${assigneeName ?: "another user"}")
+            items(state.chores, key = { it.id }) { chore ->
+                val busyAction = state.busyChoreActions[chore.id]
+                val isOpen = chore.assignedToUserId.isBlank()
+                val isAssignedToCurrentUser = chore.assignedToUserId == currentUser.authUid
+                val assigneeName = state.usersByAuthUid[chore.assignedToUserId]
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(chore.title, fontWeight = FontWeight.Bold)
+                        Text("Reward: ${chore.reward}")
+                        when {
+                            isOpen -> {
+                                Button(onClick = { onAssignChore(chore) }, enabled = busyAction == null) {
+                                    Text(if (busyAction == ChoreRowAction.ASSIGN) "Assigning..." else "Assign to me")
                                 }
                             }
-                            if (currentUser.isAdmin && !isOpen) {
-                                OutlinedButton(onClick = { onResetAssignment(chore) }, enabled = !state.submitting) {
-                                    Text("Reset assignment")
+
+                            isAssignedToCurrentUser -> {
+                                Text("Assigned to you")
+                                Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
+                                    Text(if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me")
                                 }
                             }
-                            if (currentUser.isAdmin) {
-                                OutlinedButton(onClick = { choreToDelete = chore }, enabled = !state.submitting) {
-                                    Text("Delete chore")
-                                }
+
+                            currentUser.isAdmin -> {
+                                Text("Assigned to ${assigneeName ?: "another user"}")
+                            }
+                        }
+                        if (currentUser.isAdmin && !isOpen) {
+                            OutlinedButton(onClick = { onResetAssignment(chore) }, enabled = busyAction == null) {
+                                Text(if (busyAction == ChoreRowAction.RESET) "Resetting..." else "Reset assignment")
+                            }
+                        }
+                        if (currentUser.isAdmin) {
+                            OutlinedButton(onClick = { choreToDelete = chore }, enabled = busyAction == null) {
+                                Text(if (busyAction == ChoreRowAction.DELETE) "Deleting..." else "Delete chore")
                             }
                         }
                     }
@@ -428,24 +505,111 @@ private fun ChoresScreen(
     }
 
     choreToDelete?.let { chore ->
+        val choreDeleteBusy = state.busyChoreActions[chore.id] == ChoreRowAction.DELETE
         AlertDialog(
-            onDismissRequest = { choreToDelete = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDeleteChore(chore)
+            onDismissRequest = {
+                if (!choreDeleteBusy) {
                     choreToDelete = null
-                }) {
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onDeleteChore(chore) },
+                    enabled = !choreDeleteBusy,
+                ) {
                     Text("Delete")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { choreToDelete = null }) {
+                TextButton(
+                    onClick = { choreToDelete = null },
+                    enabled = !choreDeleteBusy,
+                ) {
                     Text("Cancel")
                 }
             },
             title = { Text("Delete chore?") },
-            text = { Text(chore.description) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(chore.title)
+                    if (choreDeleteBusy) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
         )
+    }
+
+    templateToDelete?.let { template ->
+        val templateDeleteBusy = state.busyTemplateActions[template.id] == TemplateRowAction.DELETE
+        AlertDialog(
+            onDismissRequest = {
+                if (!templateDeleteBusy) {
+                    templateToDelete = null
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onDeleteTemplate(template) },
+                    enabled = !templateDeleteBusy,
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { templateToDelete = null },
+                    enabled = !templateDeleteBusy,
+                ) {
+                    Text("Cancel")
+                }
+            },
+            title = { Text("Delete template?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(template.title)
+                    if (templateDeleteBusy) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ChoreTemplateRow(
+    template: ChoreTemplate,
+    templateFormSubmitting: Boolean,
+    busyAction: TemplateRowAction?,
+    onEditTemplate: (ChoreTemplate) -> Unit,
+    onActivateTemplate: (ChoreTemplate) -> Unit,
+    onDeleteTemplate: (ChoreTemplate) -> Unit,
+) {
+    val isBusy = templateFormSubmitting || busyAction != null
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(template.title, fontWeight = FontWeight.Bold)
+            Text("Reward: ${template.reward}")
+            Button(
+                onClick = { onActivateTemplate(template) },
+                enabled = !isBusy,
+            ) {
+                Text(if (busyAction == TemplateRowAction.ACTIVATE) "Activating..." else "Activate")
+            }
+            OutlinedButton(
+                onClick = { onEditTemplate(template) },
+                enabled = !isBusy,
+            ) {
+                Text("Edit")
+            }
+            OutlinedButton(
+                onClick = { onDeleteTemplate(template) },
+                enabled = !isBusy,
+            ) {
+                Text(if (busyAction == TemplateRowAction.DELETE) "Deleting..." else "Delete")
+            }
+        }
     }
 }
 

@@ -28,9 +28,16 @@ data class PendingUser(
     val role: UserRole,
 )
 
+data class ChoreTemplate(
+    val id: String,
+    val title: String,
+    val reward: Long,
+    val createdBy: String,
+)
+
 data class Chore(
     val id: String,
-    val description: String,
+    val title: String,
     val reward: Long,
     val createdBy: String,
     val active: Boolean,
