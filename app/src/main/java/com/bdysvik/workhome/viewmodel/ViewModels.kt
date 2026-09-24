@@ -225,7 +225,7 @@ class ChoresViewModel(
     }
 
     fun activateTemplate(template: ChoreTemplate) {
-        if (!_uiState.value.currentUser.isAdmin) return
+        if (!_uiState.value.currentUser.isAdmin || _uiState.value.busyTemplateActions[template.id] != null) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -244,7 +244,7 @@ class ChoresViewModel(
     }
 
     fun deleteTemplate(template: ChoreTemplate) {
-        if (!_uiState.value.currentUser.isAdmin) return
+        if (!_uiState.value.currentUser.isAdmin || _uiState.value.busyTemplateActions[template.id] != null) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -266,6 +266,7 @@ class ChoresViewModel(
     }
 
     fun completeChore(chore: Chore) {
+        if (_uiState.value.busyChoreActions[chore.id] != null) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -284,6 +285,7 @@ class ChoresViewModel(
     }
 
     fun deleteChore(chore: Chore) {
+        if (_uiState.value.busyChoreActions[chore.id] != null) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(

@@ -8,6 +8,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -98,10 +99,11 @@ class FirebaseFamilyRepository(
         documents.mapNotNull { it.toChoreTemplate() }
     }
 
-    override fun observeChores(): Flow<List<Chore>> = collectionFlow(
-        chores.whereEqualTo("active", true)
-    ) { documents ->
-        documents.mapNotNull { it.toChore() }.sortedBy { it.title }
+    override fun observeChores(): Flow<List<Chore>> = combine(
+        activeChoresFlow("title"),
+        activeChoresFlow("description"),
+    ) { titledChores, legacyChores ->
+        (titledChores + legacyChores).distinctBy { it.id }.sortedBy { it.title }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -277,6 +279,12 @@ class FirebaseFamilyRepository(
             }
         }
         awaitClose { registration.remove() }
+    }
+
+    private fun activeChoresFlow(field: String): Flow<List<Chore>> = collectionFlow(
+        chores.whereEqualTo("active", true).orderBy(field, Query.Direction.ASCENDING)
+    ) { documents ->
+        documents.mapNotNull { it.toChore() }
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toAppUser(): AppUser? {

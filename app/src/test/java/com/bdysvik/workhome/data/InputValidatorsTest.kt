@@ -131,4 +131,9 @@ class InputValidatorsTest {
     fun choreTitle_fallsBackWhenTitleIsBlank() {
         assertEquals("Legacy title", choreTitle("   ", " Legacy title "))
     }
+
+    @Test
+    fun choreTitle_returnsNullWhenBothFieldsAreBlank() {
+        assertNull(choreTitle("   ", "   "))
+    }
 }
