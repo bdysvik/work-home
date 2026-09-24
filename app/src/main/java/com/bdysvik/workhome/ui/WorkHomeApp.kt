@@ -363,6 +363,7 @@ private fun ChoresScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
+    var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -418,7 +419,7 @@ private fun ChoresScreen(
                                         submitting = state.submitting,
                                         onEditTemplate = onEditTemplate,
                                         onActivateTemplate = onActivateTemplate,
-                                        onDeleteTemplate = onDeleteTemplate,
+                                        onDeleteTemplate = { templateToDelete = it },
                                     )
                                 }
                             }
@@ -471,6 +472,27 @@ private fun ChoresScreen(
             },
             title = { Text("Delete chore?") },
             text = { Text(chore.description) },
+        )
+    }
+
+    templateToDelete?.let { template ->
+        AlertDialog(
+            onDismissRequest = { templateToDelete = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteTemplate(template)
+                    templateToDelete = null
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { templateToDelete = null }) {
+                    Text("Cancel")
+                }
+            },
+            title = { Text("Delete template?") },
+            text = { Text(template.title) },
         )
     }
 }

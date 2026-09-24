@@ -181,7 +181,6 @@ class FirebaseFamilyRepository(
         chores.add(
             mapOf(
                 "title" to description.trim(),
-                "description" to description.trim(),
                 "reward" to reward,
                 "createdBy" to createdBy,
                 "active" to true,
