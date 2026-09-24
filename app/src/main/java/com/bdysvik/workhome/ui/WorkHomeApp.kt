@@ -391,7 +391,7 @@ private fun ChoresScreen(
                                 onValueChange = onTemplateTitleChange,
                                 label = { Text("Title") },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = !state.templateSubmitting,
+                                enabled = !state.templateFormSubmitting,
                             )
                             OutlinedTextField(
                                 value = state.templateRewardText,
@@ -399,17 +399,17 @@ private fun ChoresScreen(
                                 label = { Text("Reward") },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                enabled = !state.templateSubmitting,
+                                enabled = !state.templateFormSubmitting,
                             )
-                            Button(onClick = onSaveTemplate, enabled = !state.templateSubmitting) {
-                                Text(if (state.templateSubmitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
+                            Button(onClick = onSaveTemplate, enabled = !state.templateFormSubmitting) {
+                                Text(if (state.templateFormSubmitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
                             }
                             if (state.editingTemplateId != null) {
-                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.templateSubmitting) {
+                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.templateFormSubmitting) {
                                     Text("Cancel edit")
                                 }
                             }
-                            if (state.templateSubmitting) {
+                            if (state.templateFormSubmitting) {
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                             }
                         }
@@ -423,7 +423,8 @@ private fun ChoresScreen(
                     items(state.choreTemplates, key = { it.id }) { template ->
                         ChoreTemplateRow(
                             template = template,
-                            submitting = state.templateSubmitting,
+                            submitting = state.templateActionTemplateId != null,
+                            isWorking = state.templateActionTemplateId == template.id,
                             onEditTemplate = onEditTemplate,
                             onActivateTemplate = onActivateTemplate,
                             onDeleteTemplate = { templateToDelete = it },
@@ -505,6 +506,7 @@ private fun ChoresScreen(
 private fun ChoreTemplateRow(
     template: ChoreTemplate,
     submitting: Boolean,
+    isWorking: Boolean,
     onEditTemplate: (ChoreTemplate) -> Unit,
     onActivateTemplate: (ChoreTemplate) -> Unit,
     onDeleteTemplate: (ChoreTemplate) -> Unit,
@@ -518,7 +520,7 @@ private fun ChoreTemplateRow(
                 enabled = !submitting,
                 modifier = Modifier.semantics { contentDescription = "Activate template ${template.title}" },
             ) {
-                Text("Activate")
+                Text(if (isWorking) "Working..." else "Activate")
             }
             OutlinedButton(
                 onClick = { onEditTemplate(template) },
