@@ -34,4 +34,5 @@ data class Chore(
     val reward: Long,
     val createdBy: String,
     val active: Boolean,
+    val assignedToUserId: String = "",
 )

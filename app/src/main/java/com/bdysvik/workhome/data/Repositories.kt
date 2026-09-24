@@ -50,12 +50,14 @@ interface FamilyRepository {
     fun observeUser(userId: String): Flow<AppUser?>
     fun observeUsers(): Flow<List<AppUser>>
     fun observePendingUsers(): Flow<List<PendingUser>>
-    fun observeChores(): Flow<List<Chore>>
+    fun observeChores(currentUser: AppUser): Flow<List<Chore>>
     suspend fun bootstrapUserProfile(userId: String, email: String?)
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
     suspend fun removeUser(userId: String)
     suspend fun addChore(description: String, reward: Long, createdBy: String)
+    suspend fun assignChore(choreId: String, user: AppUser)
+    suspend fun resetChoreAssignment(choreId: String)
     suspend fun deleteChore(choreId: String)
     suspend fun completeChore(chore: Chore, user: AppUser)
     suspend fun resetRewards(admin: AppUser)
@@ -86,10 +88,14 @@ class FirebaseFamilyRepository(
         documents.mapNotNull { it.toPendingUser() }
     }
 
-    override fun observeChores(): Flow<List<Chore>> = collectionFlow(
+    override fun observeChores(currentUser: AppUser): Flow<List<Chore>> = collectionFlow(
         chores.whereEqualTo("active", true)
     ) { documents ->
-        documents.mapNotNull { it.toChore() }.sortedBy { it.description }
+        documents.mapNotNull { it.toChore() }
+            .filter { chore ->
+                currentUser.isAdmin || chore.assignedToUserId.isBlank() || chore.assignedToUserId == currentUser.authUid
+            }
+            .sortedBy { it.description }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -143,8 +149,44 @@ class FirebaseFamilyRepository(
                 "reward" to reward,
                 "createdBy" to createdBy,
                 "active" to true,
+                "assignedTo" to "",
             ),
         ).await()
+    }
+
+    override suspend fun assignChore(choreId: String, user: AppUser) {
+        val choreRef = chores.document(choreId)
+
+        firestore.runTransaction { transaction ->
+            val choreSnapshot = transaction.get(choreRef)
+            val active = choreSnapshot.getBoolean("active") ?: false
+            if (!active) {
+                throw IllegalStateException("This chore is no longer active.")
+            }
+
+            val assignedTo = choreSnapshot.getString("assignedTo").orEmpty()
+            if (assignedTo.isNotBlank()) {
+                throw IllegalStateException("This chore is already assigned.")
+            }
+
+            transaction.update(choreRef, "assignedTo", user.authUid)
+            null
+        }.await()
+    }
+
+    override suspend fun resetChoreAssignment(choreId: String) {
+        val choreRef = chores.document(choreId)
+
+        firestore.runTransaction { transaction ->
+            val choreSnapshot = transaction.get(choreRef)
+            val active = choreSnapshot.getBoolean("active") ?: false
+            if (!active) {
+                throw IllegalStateException("This chore is no longer active.")
+            }
+
+            transaction.update(choreRef, "assignedTo", "")
+            null
+        }.await()
     }
 
     override suspend fun deleteChore(choreId: String) {
@@ -167,6 +209,10 @@ class FirebaseFamilyRepository(
             val active = choreSnapshot.getBoolean("active") ?: false
             if (!active) {
                 throw IllegalStateException("This chore is no longer active.")
+            }
+            val assignedTo = choreSnapshot.getString("assignedTo").orEmpty()
+            if (assignedTo != user.authUid) {
+                throw IllegalStateException("Assign this chore to yourself before completing it.")
             }
 
             val userSnapshot = transaction.get(userRef)
@@ -285,6 +331,7 @@ class FirebaseFamilyRepository(
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
+            assignedToUserId = getString("assignedTo").orEmpty(),
         )
     }
 

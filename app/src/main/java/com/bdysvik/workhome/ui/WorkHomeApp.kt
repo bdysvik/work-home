@@ -176,7 +176,18 @@ private fun HomeScaffold(
                     ChoresViewModel(appContainer.familyRepository, currentUser)
                 })
                 val state by vm.uiState.collectAsStateWithLifecycle()
-                ChoresScreen(currentUser, state, vm::updateDescription, vm::updateReward, vm::addChore, vm::completeChore, vm::deleteChore, vm::clearMessage)
+                ChoresScreen(
+                    currentUser = currentUser,
+                    state = state,
+                    onDescriptionChange = vm::updateDescription,
+                    onRewardChange = vm::updateReward,
+                    onAddChore = vm::addChore,
+                    onAssignChore = vm::assignChore,
+                    onCompleteChore = vm::completeChore,
+                    onResetAssignment = vm::resetChoreAssignment,
+                    onDeleteChore = vm::deleteChore,
+                    onClearMessage = vm::clearMessage,
+                )
             }
             composable(Routes.Rewards) {
                 val vm: RewardsViewModel = viewModel(factory = simpleFactory {
@@ -339,7 +350,9 @@ private fun ChoresScreen(
     onDescriptionChange: (String) -> Unit,
     onRewardChange: (String) -> Unit,
     onAddChore: () -> Unit,
+    onAssignChore: (Chore) -> Unit,
     onCompleteChore: (Chore) -> Unit,
+    onResetAssignment: (Chore) -> Unit,
     onDeleteChore: (Chore) -> Unit,
     onClearMessage: () -> Unit,
 ) {
@@ -372,12 +385,35 @@ private fun ChoresScreen(
 
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(state.chores, key = { it.id }) { chore ->
+                    val isOpen = chore.assignedToUserId.isBlank()
+                    val isAssignedToCurrentUser = chore.assignedToUserId == currentUser.authUid
+                    val assigneeName = state.usersByAuthUid[chore.assignedToUserId]
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(chore.description, fontWeight = FontWeight.Bold)
                             Text("Reward: ${chore.reward}")
-                            Button(onClick = { onCompleteChore(chore) }, enabled = !state.submitting) {
-                                Text("Complete for me")
+                            when {
+                                isOpen -> {
+                                    Button(onClick = { onAssignChore(chore) }, enabled = !state.submitting) {
+                                        Text("Assign to me")
+                                    }
+                                }
+
+                                isAssignedToCurrentUser -> {
+                                    Text("Assigned to you")
+                                    Button(onClick = { onCompleteChore(chore) }, enabled = !state.submitting) {
+                                        Text("Complete for me")
+                                    }
+                                }
+
+                                currentUser.isAdmin -> {
+                                    Text("Assigned to ${assigneeName ?: "another user"}")
+                                }
+                            }
+                            if (currentUser.isAdmin && !isOpen) {
+                                OutlinedButton(onClick = { onResetAssignment(chore) }, enabled = !state.submitting) {
+                                    Text("Reset assignment")
+                                }
                             }
                             if (currentUser.isAdmin) {
                                 OutlinedButton(onClick = { choreToDelete = chore }, enabled = !state.submitting) {
