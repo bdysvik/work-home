@@ -175,7 +175,18 @@ class FirebaseFamilyRepository(
     }
 
     override suspend fun resetChoreAssignment(choreId: String) {
-        chores.document(choreId).update("assignedTo", "").await()
+        val choreRef = chores.document(choreId)
+
+        firestore.runTransaction { transaction ->
+            val choreSnapshot = transaction.get(choreRef)
+            val active = choreSnapshot.getBoolean("active") ?: false
+            if (!active) {
+                throw IllegalStateException("This chore is no longer active.")
+            }
+
+            transaction.update(choreRef, "assignedTo", "")
+            null
+        }.await()
     }
 
     override suspend fun deleteChore(choreId: String) {

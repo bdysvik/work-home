@@ -387,6 +387,7 @@ private fun ChoresScreen(
                 items(state.chores, key = { it.id }) { chore ->
                     val isOpen = chore.assignedToUserId.isBlank()
                     val isAssignedToCurrentUser = chore.assignedToUserId == currentUser.authUid
+                    val assigneeName = state.usersByAuthUid[chore.assignedToUserId]
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(chore.description, fontWeight = FontWeight.Bold)
@@ -406,7 +407,7 @@ private fun ChoresScreen(
                                 }
 
                                 currentUser.isAdmin -> {
-                                    Text("Assigned to another user")
+                                    Text("Assigned to ${assigneeName ?: "another user"}")
                                 }
                             }
                             if (currentUser.isAdmin && !isOpen) {

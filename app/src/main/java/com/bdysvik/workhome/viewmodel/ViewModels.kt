@@ -123,6 +123,7 @@ class LoginViewModel(
 data class ChoresUiState(
     val currentUser: AppUser,
     val chores: List<Chore> = emptyList(),
+    val usersByAuthUid: Map<String, String> = emptyMap(),
     val description: String = "",
     val rewardText: String = "",
     val submitting: Boolean = false,
@@ -142,6 +143,15 @@ class ChoresViewModel(
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
                 .collect { chores ->
                     _uiState.update { it.copy(chores = chores) }
+                }
+        }
+        viewModelScope.launch {
+            familyRepository.observeUsers()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { users ->
+                    _uiState.update {
+                        it.copy(usersByAuthUid = users.associate { user -> user.authUid to user.name })
+                    }
                 }
         }
     }
