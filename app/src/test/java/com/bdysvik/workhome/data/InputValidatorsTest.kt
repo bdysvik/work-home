@@ -88,4 +88,18 @@ class InputValidatorsTest {
         assertEquals(0L, payload?.get("currentRewardTotal"))
         assertEquals("", payload?.get("lastCompletionId"))
     }
+
+    @Test
+    fun choreData_buildsActiveChorePayloadForTemplateActivation() {
+        val payload = choreData(
+            title = " Clean kitchen ",
+            reward = 20L,
+            createdBy = "admin-1",
+        )
+
+        assertEquals("Clean kitchen", payload["title"])
+        assertEquals(20L, payload["reward"])
+        assertEquals("admin-1", payload["createdBy"])
+        assertEquals(true, payload["active"])
+    }
 }

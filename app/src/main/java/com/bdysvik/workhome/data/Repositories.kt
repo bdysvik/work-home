@@ -178,14 +178,7 @@ class FirebaseFamilyRepository(
     }
 
     override suspend fun addChore(description: String, reward: Long, createdBy: String) {
-        chores.add(
-            mapOf(
-                "title" to description.trim(),
-                "reward" to reward,
-                "createdBy" to createdBy,
-                "active" to true,
-            ),
-        ).await()
+        chores.add(choreData(description, reward, createdBy)).await()
     }
 
     override suspend fun deleteChore(choreId: String) {
@@ -356,6 +349,17 @@ internal fun bootstrapProfileData(
         "lastCompletionId" to "",
     )
 }
+
+internal fun choreData(
+    title: String,
+    reward: Long,
+    createdBy: String,
+): Map<String, Any> = mapOf(
+    "title" to title.trim(),
+    "reward" to reward,
+    "createdBy" to createdBy,
+    "active" to true,
+)
 
 internal fun rewardHistoryId(
     periodId: String,

@@ -37,6 +37,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -396,11 +398,11 @@ private fun ChoresScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             )
-                            Button(onClick = onSaveTemplate, enabled = !state.submitting) {
-                                Text(if (state.submitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
+                            Button(onClick = onSaveTemplate, enabled = !state.templateSubmitting) {
+                                Text(if (state.templateSubmitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
                             }
                             if (state.editingTemplateId != null) {
-                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.submitting) {
+                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.templateSubmitting) {
                                     Text("Cancel edit")
                                 }
                             }
@@ -416,7 +418,7 @@ private fun ChoresScreen(
                                 state.choreTemplates.forEach { template ->
                                     ChoreTemplateRow(
                                         template = template,
-                                        submitting = state.submitting,
+                                        submitting = state.templateSubmitting,
                                         onEditTemplate = onEditTemplate,
                                         onActivateTemplate = onActivateTemplate,
                                         onDeleteTemplate = { templateToDelete = it },
@@ -440,11 +442,11 @@ private fun ChoresScreen(
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(chore.description, fontWeight = FontWeight.Bold)
                         Text("Reward: ${chore.reward}")
-                        Button(onClick = { onCompleteChore(chore) }, enabled = !state.submitting) {
+                        Button(onClick = { onCompleteChore(chore) }, enabled = !state.choreSubmitting) {
                             Text("Complete for me")
                         }
                         if (currentUser.isAdmin) {
-                            OutlinedButton(onClick = { choreToDelete = chore }, enabled = !state.submitting) {
+                            OutlinedButton(onClick = { choreToDelete = chore }, enabled = !state.choreSubmitting) {
                                 Text("Delete chore")
                             }
                         }
@@ -509,13 +511,25 @@ private fun ChoreTemplateRow(
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(template.title, fontWeight = FontWeight.Bold)
             Text("Reward: ${template.reward}")
-            Button(onClick = { onActivateTemplate(template) }, enabled = !submitting) {
+            Button(
+                onClick = { onActivateTemplate(template) },
+                enabled = !submitting,
+                modifier = Modifier.semantics { contentDescription = "Activate template ${template.title}" },
+            ) {
                 Text("Activate chore")
             }
-            OutlinedButton(onClick = { onEditTemplate(template) }, enabled = !submitting) {
+            OutlinedButton(
+                onClick = { onEditTemplate(template) },
+                enabled = !submitting,
+                modifier = Modifier.semantics { contentDescription = "Edit template ${template.title}" },
+            ) {
                 Text("Edit template")
             }
-            OutlinedButton(onClick = { onDeleteTemplate(template) }, enabled = !submitting) {
+            OutlinedButton(
+                onClick = { onDeleteTemplate(template) },
+                enabled = !submitting,
+                modifier = Modifier.semantics { contentDescription = "Delete template ${template.title}" },
+            ) {
                 Text("Delete template")
             }
         }
