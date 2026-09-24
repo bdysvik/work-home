@@ -190,7 +190,9 @@ private fun HomeScaffold(
                     onCancelTemplateEdit = vm::cancelTemplateEdit,
                     onActivateTemplate = vm::activateTemplate,
                     onDeleteTemplate = vm::deleteTemplate,
+                    onAssignChore = vm::assignChore,
                     onCompleteChore = vm::completeChore,
+                    onResetAssignment = vm::resetChoreAssignment,
                     onDeleteChore = vm::deleteChore,
                     onClearMessage = vm::clearMessage,
                 )
@@ -360,7 +362,9 @@ private fun ChoresScreen(
     onCancelTemplateEdit: () -> Unit,
     onActivateTemplate: (ChoreTemplate) -> Unit,
     onDeleteTemplate: (ChoreTemplate) -> Unit,
+    onAssignChore: (Chore) -> Unit,
     onCompleteChore: (Chore) -> Unit,
+    onResetAssignment: (Chore) -> Unit,
     onDeleteChore: (Chore) -> Unit,
     onClearMessage: () -> Unit,
 ) {
@@ -456,12 +460,35 @@ private fun ChoresScreen(
 
             items(state.chores, key = { it.id }) { chore ->
                 val busyAction = state.busyChoreActions[chore.id]
+                val isOpen = chore.assignedToUserId.isBlank()
+                val isAssignedToCurrentUser = chore.assignedToUserId == currentUser.authUid
+                val assigneeName = state.usersByAuthUid[chore.assignedToUserId]
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(chore.title, fontWeight = FontWeight.Bold)
                         Text("Reward: ${chore.reward}")
-                        Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
-                            Text(if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me")
+                        when {
+                            isOpen -> {
+                                Button(onClick = { onAssignChore(chore) }, enabled = busyAction == null) {
+                                    Text(if (busyAction == ChoreRowAction.ASSIGN) "Assigning..." else "Assign to me")
+                                }
+                            }
+
+                            isAssignedToCurrentUser -> {
+                                Text("Assigned to you")
+                                Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
+                                    Text(if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me")
+                                }
+                            }
+
+                            currentUser.isAdmin -> {
+                                Text("Assigned to ${assigneeName ?: "another user"}")
+                            }
+                        }
+                        if (currentUser.isAdmin && !isOpen) {
+                            OutlinedButton(onClick = { onResetAssignment(chore) }, enabled = busyAction == null) {
+                                Text(if (busyAction == ChoreRowAction.RESET) "Resetting..." else "Reset assignment")
+                            }
                         }
                         if (currentUser.isAdmin) {
                             OutlinedButton(onClick = { choreToDelete = chore }, enabled = busyAction == null) {

@@ -51,7 +51,7 @@ interface FamilyRepository {
     fun observeUsers(): Flow<List<AppUser>>
     fun observePendingUsers(): Flow<List<PendingUser>>
     fun observeChoreTemplates(): Flow<List<ChoreTemplate>>
-    fun observeChores(): Flow<List<Chore>>
+    fun observeChores(currentUser: AppUser): Flow<List<Chore>>
     suspend fun bootstrapUserProfile(userId: String, email: String?)
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
@@ -61,6 +61,8 @@ interface FamilyRepository {
     suspend fun deleteChoreTemplate(templateId: String)
     suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String)
     suspend fun addChore(title: String, reward: Long, createdBy: String)
+    suspend fun assignChore(choreId: String, user: AppUser)
+    suspend fun resetChoreAssignment(choreId: String)
     suspend fun deleteChore(choreId: String)
     suspend fun completeChore(chore: Chore, user: AppUser)
     suspend fun resetRewards(admin: AppUser)
@@ -98,10 +100,14 @@ class FirebaseFamilyRepository(
         documents.mapNotNull { it.toChoreTemplate() }
     }
 
-    override fun observeChores(): Flow<List<Chore>> = collectionFlow(
+    override fun observeChores(currentUser: AppUser): Flow<List<Chore>> = collectionFlow(
         chores.whereEqualTo("active", true)
     ) { documents ->
-        documents.mapNotNull { it.toChore() }.sortedBy { it.title }
+        documents.mapNotNull { it.toChore() }
+            .filter { chore ->
+                currentUser.isAdmin || chore.assignedToUserId.isBlank() || chore.assignedToUserId == currentUser.authUid
+            }
+            .sortedBy { it.title }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -174,6 +180,40 @@ class FirebaseFamilyRepository(
         chores.add(choreData(title, reward, createdBy)).await()
     }
 
+    override suspend fun assignChore(choreId: String, user: AppUser) {
+        val choreRef = chores.document(choreId)
+
+        firestore.runTransaction { transaction ->
+            val choreSnapshot = transaction.get(choreRef)
+            val active = choreSnapshot.getBoolean("active") ?: false
+            if (!active) {
+                throw IllegalStateException("This chore is no longer active.")
+            }
+
+            val assignedTo = choreSnapshot.getString("assignedTo").orEmpty()
+            if (assignedTo.isNotBlank()) {
+                throw IllegalStateException("This chore is already assigned.")
+            }
+
+            transaction.update(choreRef, "assignedTo", user.authUid)
+            null
+        }.await()
+    }
+
+    override suspend fun resetChoreAssignment(choreId: String) {
+        val choreRef = chores.document(choreId)
+
+        firestore.runTransaction { transaction ->
+            val choreSnapshot = transaction.get(choreRef)
+            val active = choreSnapshot.getBoolean("active") ?: false
+            if (!active) {
+                throw IllegalStateException("This chore is no longer active.")
+            }
+            transaction.update(choreRef, "assignedTo", "")
+            null
+        }.await()
+    }
+
     override suspend fun deleteChore(choreId: String) {
         chores.document(choreId).delete().await()
     }
@@ -194,6 +234,10 @@ class FirebaseFamilyRepository(
             val active = choreSnapshot.getBoolean("active") ?: false
             if (!active) {
                 throw IllegalStateException("This chore is no longer active.")
+            }
+            val assignedTo = choreSnapshot.getString("assignedTo").orEmpty()
+            if (assignedTo != user.authUid) {
+                throw IllegalStateException("Assign this chore to yourself before completing it.")
             }
 
             val userSnapshot = transaction.get(userRef)
@@ -322,6 +366,7 @@ class FirebaseFamilyRepository(
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
+            assignedToUserId = getString("assignedTo").orEmpty(),
         )
     }
 
@@ -353,7 +398,10 @@ internal fun choreData(
     title: String,
     reward: Long,
     createdBy: String,
-): Map<String, Any> = choreFields(title, reward, createdBy) + ("active" to true)
+): Map<String, Any> = choreFields(title, reward, createdBy) + mapOf(
+    "active" to true,
+    "assignedTo" to "",
+)
 
 internal fun choreTemplateData(
     title: String,

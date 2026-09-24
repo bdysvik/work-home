@@ -125,6 +125,7 @@ data class ChoresUiState(
     val currentUser: AppUser,
     val choreTemplates: List<ChoreTemplate> = emptyList(),
     val chores: List<Chore> = emptyList(),
+    val usersByAuthUid: Map<String, String> = emptyMap(),
     val templateTitle: String = "",
     val templateRewardText: String = "",
     val editingTemplateId: String? = null,
@@ -140,7 +141,9 @@ enum class TemplateRowAction {
 }
 
 enum class ChoreRowAction {
+    ASSIGN,
     COMPLETE,
+    RESET,
     DELETE,
 }
 
@@ -162,10 +165,19 @@ class ChoresViewModel(
             }
         }
         viewModelScope.launch {
-            familyRepository.observeChores()
+            familyRepository.observeChores(currentUser)
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
                 .collect { chores ->
                     _uiState.update { it.copy(chores = chores) }
+                }
+        }
+        viewModelScope.launch {
+            familyRepository.observeUsers()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { users ->
+                    _uiState.update {
+                        it.copy(usersByAuthUid = users.associate { user -> user.authUid to user.name })
+                    }
                 }
         }
     }
@@ -265,6 +277,25 @@ class ChoresViewModel(
         }
     }
 
+    fun assignChore(chore: Chore) {
+        if (_uiState.value.busyChoreActions[chore.id] != null) return
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions + (chore.id to ChoreRowAction.ASSIGN),
+                    message = null,
+                )
+            }
+            val result = runCatching { familyRepository.assignChore(chore.id, _uiState.value.currentUser) }
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions - chore.id,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore assigned." else null,
+                )
+            }
+        }
+    }
+
     fun completeChore(chore: Chore) {
         if (_uiState.value.busyChoreActions[chore.id] != null) return
         viewModelScope.launch {
@@ -298,6 +329,25 @@ class ChoresViewModel(
                 it.copy(
                     busyChoreActions = it.busyChoreActions - chore.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore deleted." else null,
+                )
+            }
+        }
+    }
+
+    fun resetChoreAssignment(chore: Chore) {
+        if (_uiState.value.busyChoreActions[chore.id] != null) return
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions + (chore.id to ChoreRowAction.RESET),
+                    message = null,
+                )
+            }
+            val result = runCatching { familyRepository.resetChoreAssignment(chore.id) }
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions - chore.id,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore assignment reset." else null,
                 )
             }
         }

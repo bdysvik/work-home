@@ -19,11 +19,24 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function choreIsOpen(choreData) {
+      return choreData.assignedTo == null || choreData.assignedTo == '';
+    }
+
     function sameProfileFields() {
       return request.resource.data.name == resource.data.name
         && request.resource.data.email == resource.data.email
         && request.resource.data.role == resource.data.role
         && request.resource.data.authUid == resource.data.authUid;
+    }
+
+    function isValidSelfAssignment() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return isSignedIn()
+        && resource.data.active == true
+        && changedKeys.hasOnly(['assignedTo'])
+        && choreIsOpen(resource.data)
+        && request.resource.data.assignedTo == request.auth.uid;
     }
 
     function isValidCompletionBackedRewardUpdate(userId) {
@@ -59,7 +72,8 @@ service cloud.firestore {
 
     match /chores/{choreId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isValidSelfAssignment();
     }
 
     match /choreTemplates/{templateId} {
@@ -84,6 +98,7 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/chores/$(request.resource.data.choreId))
           && request.resource.data.reward == get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.reward
           && get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.active == true
+          && get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.assignedTo == request.auth.uid
         );
       allow update, delete: if isAdmin();
     }
