@@ -305,7 +305,7 @@ class FirebaseFamilyRepository(
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toChoreTemplate(): ChoreTemplate? {
-        val title = getString("title") ?: return null
+        val title = choreTitle(getString("title"), null) ?: return null
         return ChoreTemplate(
             id = id,
             title = title,

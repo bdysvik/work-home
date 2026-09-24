@@ -408,7 +408,7 @@ private fun ChoresScreen(
                                 enabled = !state.templateFormSubmitting,
                             )
                             Button(onClick = onSaveTemplate, enabled = !state.templateFormSubmitting) {
-                                Text(if (state.templateFormSubmitting) "Saving..." else if (state.editingTemplateId == null) "Save template" else "Update template")
+                                Text(if (state.editingTemplateId == null) "Save template" else "Update template")
                             }
                             if (state.editingTemplateId != null) {
                                 OutlinedButton(onClick = onCancelTemplateEdit, enabled = !state.templateFormSubmitting) {
@@ -416,6 +416,7 @@ private fun ChoresScreen(
                                 }
                             }
                             if (state.templateFormSubmitting) {
+                                Text("Saving template...")
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                             }
                         }
