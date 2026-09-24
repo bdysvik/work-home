@@ -138,7 +138,7 @@ class ChoresViewModel(
 
     init {
         viewModelScope.launch {
-            familyRepository.observeChores()
+            familyRepository.observeChores(currentUser)
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
                 .collect { chores ->
                     _uiState.update { it.copy(chores = chores) }
@@ -149,6 +149,19 @@ class ChoresViewModel(
     fun updateDescription(value: String) = _uiState.update { it.copy(description = value) }
     fun updateReward(value: String) = _uiState.update { it.copy(rewardText = value) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
+
+    fun assignChore(chore: Chore) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(submitting = true, message = null) }
+            val result = runCatching { familyRepository.assignChore(chore.id, _uiState.value.currentUser) }
+            _uiState.update {
+                it.copy(
+                    submitting = false,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore assigned." else null,
+                )
+            }
+        }
+    }
 
     fun addChore() {
         val state = _uiState.value
@@ -196,6 +209,19 @@ class ChoresViewModel(
                 it.copy(
                     submitting = false,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore deleted." else null,
+                )
+            }
+        }
+    }
+
+    fun resetChoreAssignment(chore: Chore) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(submitting = true, message = null) }
+            val result = runCatching { familyRepository.resetChoreAssignment(chore.id) }
+            _uiState.update {
+                it.copy(
+                    submitting = false,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore assignment reset." else null,
                 )
             }
         }
