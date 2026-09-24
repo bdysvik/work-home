@@ -346,7 +346,8 @@ internal fun bootstrapProfileData(
 internal fun choreTitle(
     title: String?,
     description: String?,
-): String? = (title ?: description)?.trim()?.takeIf { it.isNotEmpty() }
+): String? = title?.trim()?.takeIf { it.isNotEmpty() }
+    ?: description?.trim()?.takeIf { it.isNotEmpty() }
 
 internal fun choreData(
     title: String,
