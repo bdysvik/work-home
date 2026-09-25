@@ -33,7 +33,7 @@ class InputValidatorsTest {
     @Test
     fun validateChore_rejectsInvalidReward() {
         assertEquals(
-            "Reward must be a whole number greater than zero.",
+            "Minutes must be a whole number greater than zero.",
             InputValidators.validateChore("Clean kitchen", "0"),
         )
     }

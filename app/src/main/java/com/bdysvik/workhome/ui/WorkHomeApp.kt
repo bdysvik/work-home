@@ -34,12 +34,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DryCleaning
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.Yard
@@ -204,7 +204,7 @@ private fun HomeScaffold(
     val currentRoute = backStackEntry?.destination?.route ?: Routes.Chores
     val navItems = buildList {
         add(Routes.Chores to "Chores")
-        add(Routes.Rewards to "Rewards")
+        add(Routes.Rewards to "Minutes")
         if (currentUser.isAdmin) add(Routes.Users to "Users")
     }
 
@@ -251,7 +251,7 @@ private fun HomeScaffold(
                         val selected = backStackEntry?.destination?.hierarchy?.any { it.route == route } == true
                         val iconVector = when (route) {
                             Routes.Chores -> Icons.Filled.TaskAlt
-                            Routes.Rewards -> Icons.Filled.EmojiEvents
+                            Routes.Rewards -> Icons.Filled.Schedule
                             Routes.Users -> Icons.Filled.Group
                             else -> Icons.Filled.Star
                         }
@@ -313,6 +313,7 @@ private fun HomeScaffold(
                     onCreateChore = vm::createChore,
                     onTemplateTitleChange = vm::updateTemplateTitle,
                     onTemplateRewardChange = vm::updateTemplateReward,
+                    onTemplateRepeatIntervalChange = vm::updateTemplateRepeatInterval,
                     onSaveTemplate = vm::saveTemplate,
                     onEditTemplate = vm::editTemplate,
                     onCancelTemplateEdit = vm::cancelTemplateEdit,
@@ -496,6 +497,7 @@ private fun ChoresScreen(
     onCreateChore: () -> Unit,
     onTemplateTitleChange: (String) -> Unit,
     onTemplateRewardChange: (String) -> Unit,
+    onTemplateRepeatIntervalChange: (Int?) -> Unit,
     onSaveTemplate: () -> Unit,
     onEditTemplate: (ChoreTemplate) -> Unit,
     onCancelTemplateEdit: () -> Unit,
@@ -592,14 +594,14 @@ private fun ChoresScreen(
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Filled.EmojiEvents,
+                                            imageVector = Icons.Filled.Schedule,
                                             contentDescription = null,
                                             tint = WorkHomeColors.RewardStar,
                                             modifier = Modifier.size(18.dp),
                                         )
                                     }
                                     Text(
-                                        text = "Total reward",
+                                        text = "Total minutes",
                                         style = MaterialTheme.typography.labelMedium,
                                         color = WorkHomeColors.SecondaryText,
                                     )
@@ -739,7 +741,7 @@ private fun ChoresScreen(
                                 OutlinedTextField(
                                     value = state.choreRewardInputText,
                                     onValueChange = onChoreRewardChange,
-                                    label = { Text("Reward") },
+                                    label = { Text("Minutes") },
                                     modifier = Modifier.fillMaxWidth(),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     enabled = !state.createChoreSubmitting,
@@ -874,7 +876,7 @@ private fun ChoresScreen(
                                 OutlinedTextField(
                                     value = state.templateRewardText,
                                     onValueChange = onTemplateRewardChange,
-                                    label = { Text("Reward") },
+                                    label = { Text("Minutes") },
                                     modifier = Modifier.fillMaxWidth(),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     enabled = templateFormEnabled,
@@ -888,6 +890,38 @@ private fun ChoresScreen(
                                         cursorColor = WorkHomeColors.CyanAccent,
                                     ),
                                 )
+                                Text(
+                                    text = "Auto-creation schedule",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = WorkHomeColors.SecondaryText,
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    val options = listOf(
+                                        null to "Manual",
+                                        1 to "Every day",
+                                        2 to "Every 2 days",
+                                        3 to "Every 3 days",
+                                        7 to "Weekly",
+                                    )
+                                    options.forEach { (days, label) ->
+                                        FilterChip(
+                                            selected = state.templateRepeatIntervalDays == days,
+                                            onClick = { onTemplateRepeatIntervalChange(days) },
+                                            label = { Text(label) },
+                                            enabled = templateFormEnabled,
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = WorkHomeColors.CyanAccent.copy(alpha = 0.2f),
+                                                selectedLabelColor = WorkHomeColors.CyanAccent,
+                                                labelColor = WorkHomeColors.SecondaryText,
+                                            ),
+                                        )
+                                    }
+                                }
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.fillMaxWidth(),
@@ -1031,13 +1065,13 @@ private fun ChoresScreen(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Filled.Star,
-                                            contentDescription = "Reward",
+                                            imageVector = Icons.Filled.Schedule,
+                                            contentDescription = "Minutes",
                                             tint = WorkHomeColors.RewardStar,
                                             modifier = Modifier.size(14.dp),
                                         )
                                         Text(
-                                            text = "Reward: ${chore.reward}",
+                                            text = "Minutes: ${chore.reward}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = WorkHomeColors.SecondaryText,
                                         )
@@ -1409,13 +1443,13 @@ private fun CompletedChoreRow(
             modifier = Modifier.padding(start = 8.dp),
         ) {
             Icon(
-                imageVector = Icons.Filled.Star,
+                imageVector = Icons.Filled.Schedule,
                 contentDescription = null,
                 tint = WorkHomeColors.RewardStar,
                 modifier = Modifier.size(14.dp),
             )
             Text(
-                text = "+${completed.reward}",
+                text = "+${completed.reward} min",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = WorkHomeColors.RewardStar,
@@ -1454,17 +1488,27 @@ private fun ChoreTemplateRow(
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
-                        contentDescription = "Reward",
-                        tint = WorkHomeColors.RewardStar,
-                        modifier = Modifier.size(14.dp),
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Schedule,
+                            contentDescription = "Minutes",
+                            tint = WorkHomeColors.RewardStar,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = "Minutes: ${template.reward}",
+                            color = WorkHomeColors.SecondaryText,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     Text(
-                        text = "Reward: ${template.reward}",
-                        color = WorkHomeColors.SecondaryText,
+                        text = "• Schedule: ${template.recurrenceLabel()}",
+                        color = if (template.repeatIntervalDays != null) WorkHomeColors.CyanAccent else WorkHomeColors.SecondaryText,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -1665,9 +1709,9 @@ private fun RewardsScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Admin controls", fontWeight = FontWeight.Bold)
-                            Text("Reset archives the current totals into rewardHistory before setting every user total back to zero.")
+                            Text("Reset archives the current totals into history before setting every user total back to zero.")
                             Button(onClick = { showResetConfirmation = true }, enabled = !state.resetting) {
-                                Text(if (state.resetting) "Resetting..." else "Reset rewards")
+                                Text(if (state.resetting) "Resetting..." else "Reset minutes")
                             }
                         }
                     }
@@ -1696,7 +1740,7 @@ private fun RewardsScreen(
                                 }
                             }
                         }
-                        Text("Total rewards: ${user.rewardProgressText()}")
+                        Text("Total minutes: ${user.rewardProgressText()}")
                         Text("Days since last completed chore: $daysText")
                     }
                 }
@@ -1706,8 +1750,8 @@ private fun RewardsScreen(
 
     if (showResetConfirmation) {
         ConfirmDialog(
-            title = "Reset all rewards?",
-            body = "This archives the current totals and zeroes out every family member's running total.",
+            title = "Reset all minutes?",
+            body = "This archives the current totals and zeroes out every family member's running minutes.",
             onConfirm = {
                 onResetRewards()
                 showResetConfirmation = false
@@ -1763,17 +1807,17 @@ private fun SetGoalDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set reward goal") },
+        title = { Text("Set minutes goal") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Set reward goal for ${user.name}:")
+                Text("Set target minutes goal for ${user.name}:")
                 OutlinedTextField(
                     value = goalText,
                     onValueChange = { input ->
                         goalText = input.filter { it.isDigit() }
                         errorText = null
                     },
-                    label = { Text("Reward goal") },
+                    label = { Text("Minutes goal") },
                     placeholder = { Text("e.g. 500") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = errorText != null,

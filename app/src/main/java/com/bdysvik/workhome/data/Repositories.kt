@@ -58,10 +58,21 @@ interface FamilyRepository {
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
     suspend fun removeUser(userId: String)
-    suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String)
-    suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long)
+    suspend fun addChoreTemplate(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        repeatIntervalDays: Int? = null,
+    )
+    suspend fun updateChoreTemplate(
+        templateId: String,
+        title: String,
+        reward: Long,
+        repeatIntervalDays: Int? = null,
+    )
     suspend fun deleteChoreTemplate(templateId: String)
     suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String)
+    suspend fun generateScheduledChores(): Int
     suspend fun addChore(
         title: String,
         reward: Long,
@@ -169,18 +180,42 @@ class FirebaseFamilyRepository(
         users.document(userId).delete().await()
     }
 
-    override suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String) {
-        choreTemplates.add(choreTemplateData(title, reward, createdBy)).await()
+    override suspend fun addChoreTemplate(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        repeatIntervalDays: Int?,
+    ) {
+        val data = mutableMapOf<String, Any>(
+            "title" to title.trim(),
+            "reward" to reward,
+            "createdBy" to createdBy,
+            "updatedAt" to FieldValue.serverTimestamp(),
+        )
+        if (repeatIntervalDays != null && repeatIntervalDays > 0) {
+            data["repeatIntervalDays"] = repeatIntervalDays
+            data["lastSpawnedAt"] = FieldValue.serverTimestamp()
+        }
+        choreTemplates.add(data).await()
     }
 
-    override suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long) {
-        choreTemplates.document(templateId).update(
-            mapOf(
-                "title" to title.trim(),
-                "reward" to reward,
-                "updatedAt" to FieldValue.serverTimestamp(),
-            ),
-        ).await()
+    override suspend fun updateChoreTemplate(
+        templateId: String,
+        title: String,
+        reward: Long,
+        repeatIntervalDays: Int?,
+    ) {
+        val updates = mutableMapOf<String, Any>(
+            "title" to title.trim(),
+            "reward" to reward,
+            "updatedAt" to FieldValue.serverTimestamp(),
+        )
+        if (repeatIntervalDays != null && repeatIntervalDays > 0) {
+            updates["repeatIntervalDays"] = repeatIntervalDays
+        } else {
+            updates["repeatIntervalDays"] = FieldValue.delete()
+        }
+        choreTemplates.document(templateId).update(updates).await()
     }
 
     override suspend fun deleteChoreTemplate(templateId: String) {
@@ -189,6 +224,52 @@ class FirebaseFamilyRepository(
 
     override suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String) {
         addChore(title = template.title, reward = template.reward, createdBy = createdBy)
+        choreTemplates.document(template.id).update(
+            mapOf("lastSpawnedAt" to FieldValue.serverTimestamp()),
+        ).await()
+    }
+
+    override suspend fun generateScheduledChores(): Int {
+        val templatesSnapshot = choreTemplates.get().await()
+        var spawnedCount = 0
+        val nowMillis = System.currentTimeMillis()
+
+        for (doc in templatesSnapshot.documents) {
+            val template = doc.toChoreTemplate() ?: continue
+            if (template.isDue(nowMillis)) {
+                val spawned = firestore.runTransaction { transaction ->
+                    val freshDoc = transaction.get(choreTemplates.document(template.id))
+                    val freshTemplate = freshDoc.toChoreTemplate() ?: return@runTransaction false
+                    if (!freshTemplate.isDue(System.currentTimeMillis())) {
+                        return@runTransaction false
+                    }
+
+                    val choreRef = chores.document()
+                    transaction.set(
+                        choreRef,
+                        mapOf(
+                            "title" to freshTemplate.title.trim(),
+                            "reward" to freshTemplate.reward,
+                            "createdBy" to freshTemplate.createdBy,
+                            "active" to true,
+                            "assignedTo" to "",
+                            "fromTemplateId" to freshTemplate.id,
+                        ),
+                    )
+
+                    transaction.update(
+                        choreTemplates.document(freshTemplate.id),
+                        mapOf("lastSpawnedAt" to FieldValue.serverTimestamp()),
+                    )
+                    true
+                }.await()
+
+                if (spawned) {
+                    spawnedCount++
+                }
+            }
+        }
+        return spawnedCount
     }
 
     override suspend fun addChore(
@@ -441,11 +522,16 @@ class FirebaseFamilyRepository(
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toChoreTemplate(): ChoreTemplate? {
         val title = choreTitle(getString("title"), null) ?: return null
+        val repeatIntervalDays = getLong("repeatIntervalDays")?.toInt()
+        val lastSpawnedAtMillis = getTimestamp("lastSpawnedAt")?.toDate()?.time
+            ?: getLong("lastSpawnedAt")
         return ChoreTemplate(
             id = id,
             title = title,
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
+            repeatIntervalDays = repeatIntervalDays,
+            lastSpawnedAtMillis = lastSpawnedAtMillis,
         )
     }
 

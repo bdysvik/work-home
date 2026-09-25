@@ -58,7 +58,26 @@ data class ChoreTemplate(
     val title: String,
     val reward: Long,
     val createdBy: String,
-)
+    val repeatIntervalDays: Int? = null,
+    val lastSpawnedAtMillis: Long? = null,
+) {
+    fun isDue(nowMillis: Long = System.currentTimeMillis()): Boolean {
+        val interval = repeatIntervalDays ?: return false
+        if (interval <= 0) return false
+        val lastSpawned = lastSpawnedAtMillis ?: return true
+        val intervalMillis = interval * 24L * 60L * 60L * 1000L
+        return (nowMillis - lastSpawned) >= intervalMillis
+    }
+
+    fun recurrenceLabel(): String = when (repeatIntervalDays) {
+        null, 0 -> "Manual"
+        1 -> "Every day"
+        2 -> "Every 2 days"
+        3 -> "Every 3 days"
+        7 -> "Every week"
+        else -> "Every $repeatIntervalDays days"
+    }
+}
 
 data class Chore(
     val id: String,

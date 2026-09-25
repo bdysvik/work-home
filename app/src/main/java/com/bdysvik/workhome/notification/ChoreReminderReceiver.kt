@@ -3,6 +3,7 @@ package com.bdysvik.workhome.notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.bdysvik.workhome.data.FirebaseFamilyRepository
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -32,8 +33,15 @@ class ChoreReminderReceiver : BroadcastReceiver() {
                 if (FirebaseApp.getApps(context).isEmpty()) {
                     FirebaseApp.initializeApp(context)
                 }
+
+                // Check and auto-generate any due chores from scheduled templates
+                val firestore = FirebaseFirestore.getInstance()
+                runCatching {
+                    FirebaseFamilyRepository(firestore).generateScheduledChores()
+                }
+
                 val currentUser = FirebaseAuth.getInstance().currentUser ?: return@launch
-                val userDoc = FirebaseFirestore.getInstance()
+                val userDoc = firestore
                     .collection("users")
                     .document(currentUser.uid)
                     .get()

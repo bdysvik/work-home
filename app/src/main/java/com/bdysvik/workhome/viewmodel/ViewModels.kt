@@ -136,6 +136,7 @@ data class ChoresUiState(
     val createChoreSubmitting: Boolean = false,
     val templateTitle: String = "",
     val templateRewardText: String = "",
+    val templateRepeatIntervalDays: Int? = null,
     val editingTemplateId: String? = null,
     val templateFormSubmitting: Boolean = false,
     val busyTemplateActions: Map<String, TemplateRowAction> = emptyMap(),
@@ -163,6 +164,9 @@ class ChoresViewModel(
     val uiState: StateFlow<ChoresUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            runCatching { familyRepository.generateScheduledChores() }
+        }
         if (currentUser.isAdmin) {
             viewModelScope.launch {
                 familyRepository.observeChoreTemplates()
@@ -250,6 +254,7 @@ class ChoresViewModel(
 
     fun updateTemplateTitle(value: String) = _uiState.update { it.copy(templateTitle = value) }
     fun updateTemplateReward(value: String) = _uiState.update { it.copy(templateRewardText = value) }
+    fun updateTemplateRepeatInterval(days: Int?) = _uiState.update { it.copy(templateRepeatIntervalDays = days) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
     fun cancelTemplateEdit() {
         if (
@@ -257,7 +262,14 @@ class ChoresViewModel(
             _uiState.value.templateFormSubmitting ||
             _uiState.value.busyTemplateActions.isNotEmpty()
         ) return
-        _uiState.update { it.copy(templateTitle = "", templateRewardText = "", editingTemplateId = null) }
+        _uiState.update {
+            it.copy(
+                templateTitle = "",
+                templateRewardText = "",
+                templateRepeatIntervalDays = null,
+                editingTemplateId = null,
+            )
+        }
     }
 
     fun editTemplate(template: ChoreTemplate) {
@@ -270,6 +282,7 @@ class ChoresViewModel(
             it.copy(
                 templateTitle = template.title,
                 templateRewardText = template.reward.toString(),
+                templateRepeatIntervalDays = template.repeatIntervalDays,
                 editingTemplateId = template.id,
             )
         }
@@ -289,15 +302,26 @@ class ChoresViewModel(
             _uiState.update { it.copy(templateFormSubmitting = true, message = null) }
             val result = runCatching {
                 if (state.editingTemplateId == null) {
-                    familyRepository.addChoreTemplate(state.templateTitle, reward, state.currentUser.authUid)
+                    familyRepository.addChoreTemplate(
+                        state.templateTitle,
+                        reward,
+                        state.currentUser.authUid,
+                        state.templateRepeatIntervalDays,
+                    )
                 } else {
-                    familyRepository.updateChoreTemplate(state.editingTemplateId, state.templateTitle, reward)
+                    familyRepository.updateChoreTemplate(
+                        state.editingTemplateId,
+                        state.templateTitle,
+                        reward,
+                        state.templateRepeatIntervalDays,
+                    )
                 }
             }
             _uiState.update {
                 it.copy(
                     templateTitle = if (result.isSuccess) "" else it.templateTitle,
                     templateRewardText = if (result.isSuccess) "" else it.templateRewardText,
+                    templateRepeatIntervalDays = if (result.isSuccess) null else it.templateRepeatIntervalDays,
                     editingTemplateId = if (result.isSuccess) null else it.editingTemplateId,
                     templateFormSubmitting = false,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) {
@@ -391,7 +415,7 @@ class ChoresViewModel(
             _uiState.update {
                 it.copy(
                     busyChoreActions = it.busyChoreActions - chore.id,
-                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Reward added." else null,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Minutes added." else null,
                 )
             }
         }
@@ -571,7 +595,7 @@ class RewardsViewModel(
             _uiState.update {
                 it.copy(
                     resetting = false,
-                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Rewards reset and archived." else null,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Minutes reset and archived." else null,
                 )
             }
         }
