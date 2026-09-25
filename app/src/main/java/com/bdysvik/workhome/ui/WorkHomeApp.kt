@@ -307,6 +307,7 @@ private fun HomeScaffold(
                     currentUser = currentUser,
                     state = state,
                     onChoreTitleChange = vm::updateChoreTitleInput,
+                    onChoreDescriptionChange = vm::updateChoreDescriptionInput,
                     onChoreRewardChange = vm::updateChoreRewardInput,
                     onSelectAssignee = vm::selectAssigneeUser,
                     onToggleMarkCompleted = vm::toggleMarkCompleted,
@@ -321,6 +322,7 @@ private fun HomeScaffold(
                     onDeleteTemplate = vm::deleteTemplate,
                     onAssignChore = vm::assignChore,
                     onCompleteChore = vm::completeChore,
+                    onApproveChore = vm::approveChore,
                     onResetAssignment = vm::resetChoreAssignment,
                     onDeleteChore = vm::deleteChore,
                     onClearMessage = vm::clearMessage,
@@ -491,6 +493,7 @@ private fun ChoresScreen(
     currentUser: AppUser,
     state: ChoresUiState,
     onChoreTitleChange: (String) -> Unit,
+    onChoreDescriptionChange: (String) -> Unit,
     onChoreRewardChange: (String) -> Unit,
     onSelectAssignee: (AppUser?) -> Unit,
     onToggleMarkCompleted: (Boolean) -> Unit,
@@ -505,6 +508,7 @@ private fun ChoresScreen(
     onDeleteTemplate: (ChoreTemplate) -> Unit,
     onAssignChore: (Chore) -> Unit,
     onCompleteChore: (Chore) -> Unit,
+    onApproveChore: (Chore) -> Unit,
     onResetAssignment: (Chore) -> Unit,
     onDeleteChore: (Chore) -> Unit,
     onClearMessage: () -> Unit,
@@ -702,59 +706,75 @@ private fun ChoresScreen(
                 }
             }
 
-            if (currentUser.isAdmin) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = WorkHomeShapes.CardShape,
-                        color = WorkHomeColors.CardBackground,
-                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
-                        shadowElevation = 2.dp,
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = WorkHomeShapes.CardShape,
+                    color = WorkHomeColors.CardBackground,
+                    border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                    shadowElevation = 2.dp,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(WorkHomeColors.CardGradient)
+                            .padding(WorkHomeDimens.CardPadding),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .background(WorkHomeColors.CardGradient)
-                                .padding(WorkHomeDimens.CardPadding),
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "Create custom chore",
-                                    fontWeight = FontWeight.Bold,
-                                    color = WorkHomeColors.PrimaryText,
-                                )
-                                OutlinedTextField(
-                                    value = state.choreTitleInput,
-                                    onValueChange = onChoreTitleChange,
-                                    label = { Text("Title") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !state.createChoreSubmitting,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = WorkHomeColors.CyanAccent,
-                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
-                                        focusedLabelColor = WorkHomeColors.CyanAccent,
-                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
-                                        focusedTextColor = WorkHomeColors.PrimaryText,
-                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
-                                        cursorColor = WorkHomeColors.CyanAccent,
-                                    ),
-                                )
-                                OutlinedTextField(
-                                    value = state.choreRewardInputText,
-                                    onValueChange = onChoreRewardChange,
-                                    label = { Text("Minutes") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    enabled = !state.createChoreSubmitting,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = WorkHomeColors.CyanAccent,
-                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
-                                        focusedLabelColor = WorkHomeColors.CyanAccent,
-                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
-                                        focusedTextColor = WorkHomeColors.PrimaryText,
-                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
-                                        cursorColor = WorkHomeColors.CyanAccent,
-                                    ),
-                                )
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Create custom chore",
+                                fontWeight = FontWeight.Bold,
+                                color = WorkHomeColors.PrimaryText,
+                            )
+                            OutlinedTextField(
+                                value = state.choreTitleInput,
+                                onValueChange = onChoreTitleChange,
+                                label = { Text("Title") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !state.createChoreSubmitting,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = WorkHomeColors.CyanAccent,
+                                    unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                    focusedLabelColor = WorkHomeColors.CyanAccent,
+                                    unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                    focusedTextColor = WorkHomeColors.PrimaryText,
+                                    unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                    cursorColor = WorkHomeColors.CyanAccent,
+                                ),
+                            )
+                            OutlinedTextField(
+                                value = state.choreDescriptionInput,
+                                onValueChange = onChoreDescriptionChange,
+                                label = { Text("Description") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !state.createChoreSubmitting,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = WorkHomeColors.CyanAccent,
+                                    unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                    focusedLabelColor = WorkHomeColors.CyanAccent,
+                                    unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                    focusedTextColor = WorkHomeColors.PrimaryText,
+                                    unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                    cursorColor = WorkHomeColors.CyanAccent,
+                                ),
+                            )
+                            OutlinedTextField(
+                                value = state.choreRewardInputText,
+                                onValueChange = onChoreRewardChange,
+                                label = { Text("Minutes") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = !state.createChoreSubmitting,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = WorkHomeColors.CyanAccent,
+                                    unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                    focusedLabelColor = WorkHomeColors.CyanAccent,
+                                    unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                    focusedTextColor = WorkHomeColors.PrimaryText,
+                                    unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                    cursorColor = WorkHomeColors.CyanAccent,
+                                ),
+                            )
+                            if (currentUser.isAdmin) {
                                 Text(
                                     text = "Assign to (optional):",
                                     style = MaterialTheme.typography.labelMedium,
@@ -818,25 +838,44 @@ private fun ChoresScreen(
                                         )
                                     }
                                 }
-                                Button(
-                                    onClick = onCreateChore,
-                                    enabled = !state.createChoreSubmitting,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = WorkHomeShapes.PillShape,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = WorkHomeColors.PrimaryBlue,
-                                        contentColor = Color.White,
-                                    ),
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
+                                    Checkbox(
+                                        checked = state.markCompletedInput,
+                                        onCheckedChange = onToggleMarkCompleted,
+                                        enabled = !state.createChoreSubmitting,
+                                    )
                                     Text(
-                                        text = if (state.createChoreSubmitting) "Creating..." else "Create chore",
-                                        fontWeight = FontWeight.Bold,
+                                        text = "Set to complete (awaits admin approval)",
+                                        color = WorkHomeColors.PrimaryText,
+                                        style = MaterialTheme.typography.bodyMedium,
                                     )
                                 }
+                            }
+                            Button(
+                                onClick = onCreateChore,
+                                enabled = !state.createChoreSubmitting,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = WorkHomeShapes.PillShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = WorkHomeColors.PrimaryBlue,
+                                    contentColor = Color.White,
+                                ),
+                            ) {
+                                Text(
+                                    text = if (state.createChoreSubmitting) "Creating..." else "Create chore",
+                                    fontWeight = FontWeight.Bold,
+                                )
                             }
                         }
                     }
                 }
+            }
+
+            if (currentUser.isAdmin) {
 
                 item {
                     Surface(
@@ -1060,6 +1099,28 @@ private fun ChoresScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = WorkHomeColors.PrimaryText,
                                     )
+                                    if (chore.description.isNotBlank()) {
+                                        Text(
+                                            text = chore.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = WorkHomeColors.SecondaryText,
+                                        )
+                                    }
+                                    if (chore.awaitingApproval) {
+                                        Surface(
+                                            shape = WorkHomeShapes.BadgeShape,
+                                            color = Color(0xFF3E2723),
+                                            border = BorderStroke(1.dp, Color(0xFFFFB74D)),
+                                        ) {
+                                            Text(
+                                                text = "Awaiting approval",
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color(0xFFFFB74D),
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
+                                    }
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1102,6 +1163,28 @@ private fun ChoresScreen(
                             }
 
                             when {
+                                chore.awaitingApproval -> {
+                                    if (currentUser.isAdmin) {
+                                        Button(
+                                            onClick = { onApproveChore(chore) },
+                                            enabled = busyAction == null,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(48.dp),
+                                            shape = WorkHomeShapes.PillShape,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF2E7D32),
+                                                contentColor = Color.White,
+                                            ),
+                                        ) {
+                                            Text(
+                                                text = if (busyAction == ChoreRowAction.APPROVE) "Approving..." else "Approve chore",
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
+                                    }
+                                }
+
                                 isOpen -> {
                                     Button(
                                         onClick = { onAssignChore(chore) },
@@ -1219,7 +1302,7 @@ private fun ChoresScreen(
                                 }
                             }
 
-                            if (currentUser.isAdmin && !isOpen) {
+                            if (currentUser.isAdmin && !isOpen && !chore.awaitingApproval) {
                                 OutlinedButton(
                                     onClick = { onResetAssignment(chore) },
                                     enabled = busyAction == null,
@@ -1436,6 +1519,15 @@ private fun CompletedChoreRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = WorkHomeColors.SecondaryText,
             )
+            if (completed.description.isNotBlank()) {
+                Text(
+                    text = completed.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WorkHomeColors.SecondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

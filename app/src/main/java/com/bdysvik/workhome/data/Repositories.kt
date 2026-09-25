@@ -79,11 +79,14 @@ interface FamilyRepository {
         createdBy: String,
         assignedToUser: AppUser? = null,
         markCompleted: Boolean = false,
+        description: String = "",
+        needsApproval: Boolean = false,
     )
     suspend fun assignChore(choreId: String, user: AppUser)
     suspend fun resetChoreAssignment(choreId: String)
     suspend fun deleteChore(choreId: String)
     suspend fun completeChore(chore: Chore, user: AppUser)
+    suspend fun approveChore(chore: Chore, admin: AppUser)
     suspend fun resetRewards(admin: AppUser)
     suspend fun setUserGoal(userId: String, goal: Long?)
 }
@@ -278,8 +281,24 @@ class FirebaseFamilyRepository(
         createdBy: String,
         assignedToUser: AppUser?,
         markCompleted: Boolean,
+        description: String,
+        needsApproval: Boolean,
     ) {
-        if (assignedToUser != null && markCompleted) {
+        if (markCompleted && needsApproval) {
+            val assignedUid = assignedToUser?.authUid?.ifEmpty { createdBy } ?: createdBy
+            chores.add(
+                mapOf(
+                    "title" to title.trim(),
+                    "description" to description.trim(),
+                    "reward" to reward,
+                    "createdBy" to createdBy,
+                    "active" to true,
+                    "assignedTo" to assignedUid,
+                    "awaitingApproval" to true,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                ),
+            ).await()
+        } else if (assignedToUser != null && markCompleted) {
             val periodId = currentPeriodId()
             val choreRef = chores.document()
             val completionRef = completions.document("${periodId}_${assignedToUser.authUid}_${choreRef.id}")
@@ -293,10 +312,12 @@ class FirebaseFamilyRepository(
                     choreRef,
                     mapOf(
                         "title" to title.trim(),
+                        "description" to description.trim(),
                         "reward" to reward,
                         "createdBy" to createdBy,
                         "active" to false,
                         "assignedTo" to assignedToUser.authUid,
+                        "awaitingApproval" to false,
                     ),
                 )
                 transaction.set(
@@ -306,6 +327,7 @@ class FirebaseFamilyRepository(
                         "choreId" to choreRef.id,
                         "choreTitle" to title.trim(),
                         "title" to title.trim(),
+                        "description" to description.trim(),
                         "userName" to assignedToUser.name,
                         "periodId" to periodId,
                         "reward" to reward,
@@ -326,10 +348,13 @@ class FirebaseFamilyRepository(
             chores.add(
                 mapOf(
                     "title" to title.trim(),
+                    "description" to description.trim(),
                     "reward" to reward,
                     "createdBy" to createdBy,
                     "active" to true,
                     "assignedTo" to (assignedToUser?.authUid ?: ""),
+                    "awaitingApproval" to false,
+                    "createdAt" to FieldValue.serverTimestamp(),
                 ),
             ).await()
         }
@@ -416,6 +441,66 @@ class FirebaseFamilyRepository(
                     "currentRewardTotal" to currentRewardTotal + chore.reward,
                     "lastCompletionId" to completionRef.id,
                     "lastCompletedAt" to FieldValue.serverTimestamp(),
+                ),
+            )
+            null
+        }.await()
+    }
+
+    override suspend fun approveChore(chore: Chore, admin: AppUser) {
+        val periodId = currentPeriodId()
+        val choreRef = chores.document(chore.id)
+
+        firestore.runTransaction { transaction ->
+            val choreSnapshot = transaction.get(choreRef)
+            val active = choreSnapshot.getBoolean("active") ?: false
+            val awaitingApproval = choreSnapshot.getBoolean("awaitingApproval") ?: false
+            if (!active || !awaitingApproval) {
+                throw IllegalStateException("This chore is no longer awaiting approval.")
+            }
+
+            val assignedTo = choreSnapshot.getString("assignedTo").orEmpty()
+                .ifEmpty { choreSnapshot.getString("createdBy").orEmpty() }
+            if (assignedTo.isEmpty()) {
+                throw IllegalStateException("No user assigned to this chore.")
+            }
+
+            val userRef = users.document(assignedTo)
+            val userSnapshot = transaction.get(userRef)
+            val currentRewardTotal = userSnapshot.getLong("currentRewardTotal") ?: 0L
+            val userName = userSnapshot.getString("name").orEmpty()
+
+            val completionRef = completions.document("${periodId}_${assignedTo}_${chore.id}")
+            transaction.set(
+                completionRef,
+                mapOf(
+                    "userId" to assignedTo,
+                    "choreId" to chore.id,
+                    "choreTitle" to chore.title,
+                    "title" to chore.title,
+                    "description" to chore.description,
+                    "userName" to userName,
+                    "periodId" to periodId,
+                    "reward" to chore.reward,
+                    "completedAt" to FieldValue.serverTimestamp(),
+                    "approvedBy" to admin.authUid,
+                ),
+            )
+            transaction.update(
+                userRef,
+                mapOf(
+                    "currentRewardTotal" to currentRewardTotal + chore.reward,
+                    "lastCompletionId" to completionRef.id,
+                    "lastCompletedAt" to FieldValue.serverTimestamp(),
+                ),
+            )
+            transaction.update(
+                choreRef,
+                mapOf(
+                    "active" to false,
+                    "awaitingApproval" to false,
+                    "approvedAt" to FieldValue.serverTimestamp(),
+                    "approvedBy" to admin.authUid,
                 ),
             )
             null
@@ -540,10 +625,12 @@ class FirebaseFamilyRepository(
         return Chore(
             id = id,
             title = title,
+            description = getString("description").orEmpty(),
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
             assignedToUserId = getString("assignedTo").orEmpty(),
+            awaitingApproval = getBoolean("awaitingApproval") ?: false,
         )
     }
 
@@ -554,6 +641,7 @@ class FirebaseFamilyRepository(
             getString("choreTitle") ?: getString("title"),
             getString("description"),
         ) ?: "Completed chore"
+        val description = getString("description").orEmpty()
         val reward = getLong("reward") ?: 0L
         val userName = getString("userName").orEmpty()
         val completedAtMillis = getTimestamp("completedAt")?.toDate()?.time
@@ -562,6 +650,7 @@ class FirebaseFamilyRepository(
             id = id,
             choreId = choreId,
             title = title,
+            description = description,
             reward = reward,
             userId = userId,
             userName = userName,

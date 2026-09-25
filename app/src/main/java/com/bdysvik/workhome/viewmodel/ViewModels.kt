@@ -130,6 +130,7 @@ data class ChoresUiState(
     val usersList: List<AppUser> = emptyList(),
     val usersByAuthUid: Map<String, String> = emptyMap(),
     val choreTitleInput: String = "",
+    val choreDescriptionInput: String = "",
     val choreRewardInputText: String = "",
     val selectedAssigneeUser: AppUser? = null,
     val markCompletedInput: Boolean = false,
@@ -152,6 +153,7 @@ enum class TemplateRowAction {
 enum class ChoreRowAction {
     ASSIGN,
     COMPLETE,
+    APPROVE,
     RESET,
     DELETE,
 }
@@ -205,19 +207,26 @@ class ChoresViewModel(
     }
 
     fun updateChoreTitleInput(value: String) = _uiState.update { it.copy(choreTitleInput = value) }
+    fun updateChoreDescriptionInput(value: String) = _uiState.update { it.copy(choreDescriptionInput = value) }
     fun updateChoreRewardInput(value: String) = _uiState.update { it.copy(choreRewardInputText = value) }
     fun selectAssigneeUser(user: AppUser?) = _uiState.update { it.copy(selectedAssigneeUser = user) }
     fun toggleMarkCompleted(value: Boolean) = _uiState.update { it.copy(markCompletedInput = value) }
 
     fun createChore() {
         val state = _uiState.value
-        if (!state.currentUser.isAdmin || state.createChoreSubmitting) return
+        if (state.createChoreSubmitting) return
         val error = InputValidators.validateChore(state.choreTitleInput, state.choreRewardInputText)
         if (error != null) {
             _uiState.update { it.copy(message = error) }
             return
         }
         val reward = InputValidators.parseReward(state.choreRewardInputText) ?: return
+
+        val targetAssignee = state.selectedAssigneeUser
+            ?: if (!state.currentUser.isAdmin && state.markCompletedInput) state.currentUser else null
+
+        val needsApproval = !state.currentUser.isAdmin && state.markCompletedInput
+        val markCompleted = state.markCompletedInput && (state.currentUser.isAdmin || targetAssignee != null)
 
         viewModelScope.launch {
             _uiState.update { it.copy(createChoreSubmitting = true, message = null) }
@@ -226,22 +235,27 @@ class ChoresViewModel(
                     title = state.choreTitleInput,
                     reward = reward,
                     createdBy = state.currentUser.authUid,
-                    assignedToUser = state.selectedAssigneeUser,
-                    markCompleted = state.selectedAssigneeUser != null && state.markCompletedInput,
+                    assignedToUser = targetAssignee,
+                    markCompleted = markCompleted,
+                    description = state.choreDescriptionInput,
+                    needsApproval = needsApproval,
                 )
             }
             _uiState.update {
                 it.copy(
                     choreTitleInput = if (result.isSuccess) "" else it.choreTitleInput,
+                    choreDescriptionInput = if (result.isSuccess) "" else it.choreDescriptionInput,
                     choreRewardInputText = if (result.isSuccess) "" else it.choreRewardInputText,
                     selectedAssigneeUser = if (result.isSuccess) null else it.selectedAssigneeUser,
                     markCompletedInput = if (result.isSuccess) false else it.markCompletedInput,
                     createChoreSubmitting = false,
                     message = result.exceptionOrNull()?.localizedMessage
                         ?: if (result.isSuccess) {
-                            if (state.selectedAssigneeUser != null && state.markCompletedInput) {
-                                "Chore created, assigned, and marked completed!"
-                            } else if (state.selectedAssigneeUser != null) {
+                            if (needsApproval) {
+                                "Custom chore submitted and awaiting approval!"
+                            } else if (markCompleted) {
+                                "Chore created and marked completed!"
+                            } else if (targetAssignee != null) {
                                 "Chore created and assigned!"
                             } else {
                                 "Chore created!"
@@ -416,6 +430,26 @@ class ChoresViewModel(
                 it.copy(
                     busyChoreActions = it.busyChoreActions - chore.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Minutes added." else null,
+                )
+            }
+        }
+    }
+
+    fun approveChore(chore: Chore) {
+        if (!_uiState.value.currentUser.isAdmin || _uiState.value.busyChoreActions[chore.id] != null) return
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions + (chore.id to ChoreRowAction.APPROVE),
+                    message = null,
+                )
+            }
+            val result = runCatching { familyRepository.approveChore(chore, _uiState.value.currentUser) }
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions - chore.id,
+                    message = result.exceptionOrNull()?.localizedMessage
+                        ?: if (result.isSuccess) "Chore approved and minutes added!" else null,
                 )
             }
         }

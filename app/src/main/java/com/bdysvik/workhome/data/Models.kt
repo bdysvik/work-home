@@ -82,16 +82,19 @@ data class ChoreTemplate(
 data class Chore(
     val id: String,
     val title: String,
+    val description: String = "",
     val reward: Long,
     val createdBy: String,
     val active: Boolean,
     val assignedToUserId: String = "",
+    val awaitingApproval: Boolean = false,
 )
 
 data class CompletedChore(
     val id: String,
     val choreId: String,
     val title: String,
+    val description: String = "",
     val reward: Long,
     val userId: String,
     val userName: String = "",
