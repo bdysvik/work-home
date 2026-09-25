@@ -1,8 +1,8 @@
 package com.bdysvik.workhome.ui
 
 import java.time.LocalDate
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.Assert.assertEquals
+import org.junit.Test
 
 class WorkHomeAppTest {
     @Test

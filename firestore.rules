@@ -12,7 +12,10 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && currentUserDoc().data.role == 'admin';
+        && (
+          currentUserDoc().data.role == 'admin' ||
+          currentUserDoc().data.role == 'ADMIN'
+        );
     }
 
     function isSelf(userId) {
@@ -77,7 +80,8 @@ service cloud.firestore {
     }
 
     match /choreTemplates/{templateId} {
-      allow read, create, update, delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     match /rewardHistory/{historyId} {

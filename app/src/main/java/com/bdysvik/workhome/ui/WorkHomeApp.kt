@@ -12,8 +12,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -52,7 +58,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.foundation.text.KeyboardOptions
 import com.bdysvik.workhome.AppContainer
 import com.bdysvik.workhome.data.AppUser
 import com.bdysvik.workhome.data.Chore
@@ -188,6 +193,11 @@ private fun HomeScaffold(
                 ChoresScreen(
                     currentUser = currentUser,
                     state = state,
+                    onChoreTitleChange = vm::updateChoreTitleInput,
+                    onChoreRewardChange = vm::updateChoreRewardInput,
+                    onSelectAssignee = vm::selectAssigneeUser,
+                    onToggleMarkCompleted = vm::toggleMarkCompleted,
+                    onCreateChore = vm::createChore,
                     onTemplateTitleChange = vm::updateTemplateTitle,
                     onTemplateRewardChange = vm::updateTemplateReward,
                     onSaveTemplate = vm::saveTemplate,
@@ -360,6 +370,11 @@ private fun LoginScreen(
 private fun ChoresScreen(
     currentUser: AppUser,
     state: ChoresUiState,
+    onChoreTitleChange: (String) -> Unit,
+    onChoreRewardChange: (String) -> Unit,
+    onSelectAssignee: (AppUser?) -> Unit,
+    onToggleMarkCompleted: (Boolean) -> Unit,
+    onCreateChore: () -> Unit,
     onTemplateTitleChange: (String) -> Unit,
     onTemplateRewardChange: (String) -> Unit,
     onSaveTemplate: () -> Unit,
@@ -427,6 +442,69 @@ private fun ChoresScreen(
             }
 
             if (currentUser.isAdmin) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Create custom chore", fontWeight = FontWeight.Bold)
+                            OutlinedTextField(
+                                value = state.choreTitleInput,
+                                onValueChange = onChoreTitleChange,
+                                label = { Text("Title") },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !state.createChoreSubmitting,
+                            )
+                            OutlinedTextField(
+                                value = state.choreRewardInputText,
+                                onValueChange = onChoreRewardChange,
+                                label = { Text("Reward") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = !state.createChoreSubmitting,
+                            )
+                            Text("Assign to (optional):", style = MaterialTheme.typography.labelMedium)
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                FilterChip(
+                                    selected = state.selectedAssigneeUser == null,
+                                    onClick = { onSelectAssignee(null) },
+                                    label = { Text("Unassigned") },
+                                    enabled = !state.createChoreSubmitting,
+                                )
+                                state.usersList.forEach { user ->
+                                    FilterChip(
+                                        selected = state.selectedAssigneeUser?.id == user.id,
+                                        onClick = { onSelectAssignee(user) },
+                                        label = { Text(user.name) },
+                                        enabled = !state.createChoreSubmitting,
+                                    )
+                                }
+                            }
+                            if (state.selectedAssigneeUser != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Checkbox(
+                                        checked = state.markCompletedInput,
+                                        onCheckedChange = onToggleMarkCompleted,
+                                        enabled = !state.createChoreSubmitting,
+                                    )
+                                    Text("Mark as completed immediately")
+                                }
+                            }
+                            Button(
+                                onClick = onCreateChore,
+                                enabled = !state.createChoreSubmitting,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(if (state.createChoreSubmitting) "Creating..." else "Create chore")
+                            }
+                        }
+                    }
+                }
+
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

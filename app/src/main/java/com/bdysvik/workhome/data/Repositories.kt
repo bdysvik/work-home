@@ -60,7 +60,13 @@ interface FamilyRepository {
     suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long)
     suspend fun deleteChoreTemplate(templateId: String)
     suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String)
-    suspend fun addChore(title: String, reward: Long, createdBy: String)
+    suspend fun addChore(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        assignedToUser: AppUser? = null,
+        markCompleted: Boolean = false,
+    )
     suspend fun assignChore(choreId: String, user: AppUser)
     suspend fun resetChoreAssignment(choreId: String)
     suspend fun deleteChore(choreId: String)
@@ -176,8 +182,63 @@ class FirebaseFamilyRepository(
         addChore(title = template.title, reward = template.reward, createdBy = createdBy)
     }
 
-    override suspend fun addChore(title: String, reward: Long, createdBy: String) {
-        chores.add(choreData(title, reward, createdBy)).await()
+    override suspend fun addChore(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        assignedToUser: AppUser?,
+        markCompleted: Boolean,
+    ) {
+        if (assignedToUser != null && markCompleted) {
+            val periodId = currentPeriodId()
+            val choreRef = chores.document()
+            val completionRef = completions.document("${periodId}_${assignedToUser.id}_${choreRef.id}")
+            val userRef = users.document(assignedToUser.id)
+
+            firestore.runTransaction { transaction ->
+                val userSnapshot = transaction.get(userRef)
+                val currentRewardTotal = userSnapshot.getLong("currentRewardTotal") ?: 0L
+
+                transaction.set(
+                    choreRef,
+                    mapOf(
+                        "title" to title.trim(),
+                        "reward" to reward,
+                        "createdBy" to createdBy,
+                        "active" to false,
+                        "assignedTo" to assignedToUser.authUid,
+                    ),
+                )
+                transaction.set(
+                    completionRef,
+                    mapOf(
+                        "userId" to assignedToUser.id,
+                        "choreId" to choreRef.id,
+                        "periodId" to periodId,
+                        "reward" to reward,
+                        "completedAt" to FieldValue.serverTimestamp(),
+                    ),
+                )
+                transaction.update(
+                    userRef,
+                    mapOf(
+                        "currentRewardTotal" to currentRewardTotal + reward,
+                        "lastCompletionId" to completionRef.id,
+                    ),
+                )
+                null
+            }.await()
+        } else {
+            chores.add(
+                mapOf(
+                    "title" to title.trim(),
+                    "reward" to reward,
+                    "createdBy" to createdBy,
+                    "active" to true,
+                    "assignedTo" to (assignedToUser?.authUid ?: ""),
+                ),
+            ).await()
+        }
     }
 
     override suspend fun assignChore(choreId: String, user: AppUser) {
