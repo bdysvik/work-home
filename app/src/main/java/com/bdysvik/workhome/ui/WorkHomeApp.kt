@@ -1,31 +1,60 @@
 package com.bdysvik.workhome.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Bed
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DryCleaning
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Yard
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -37,6 +66,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,9 +77,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -68,6 +100,9 @@ import com.bdysvik.workhome.data.ChoreTemplate
 import com.bdysvik.workhome.data.CompletedChore
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
+import com.bdysvik.workhome.ui.theme.WorkHomeColors
+import com.bdysvik.workhome.ui.theme.WorkHomeDimens
+import com.bdysvik.workhome.ui.theme.WorkHomeShapes
 import com.bdysvik.workhome.viewmodel.ChoreRowAction
 import com.bdysvik.workhome.viewmodel.ChoresUiState
 import com.bdysvik.workhome.viewmodel.ChoresViewModel
@@ -150,36 +185,86 @@ private fun HomeScaffold(
     }
 
     Scaffold(
+        containerColor = WorkHomeColors.Background,
+        contentColor = WorkHomeColors.PrimaryText,
         topBar = {
             TopAppBar(
-                title = { Text(navItems.firstOrNull { it.first == currentRoute }?.second ?: "WorkHome") },
+                title = {
+                    Text(
+                        text = navItems.firstOrNull { it.first == currentRoute }?.second ?: "WorkHome",
+                        fontWeight = FontWeight.Bold,
+                        color = WorkHomeColors.PrimaryText,
+                    )
+                },
                 actions = {
-                    TextButton(onClick = onSignOut) {
-                        Text("Sign out")
+                    IconButton(onClick = onSignOut) {
+                        Icon(
+                            imageVector = Icons.Filled.AccountCircle,
+                            contentDescription = "Sign out",
+                            tint = WorkHomeColors.SecondaryText,
+                        )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = WorkHomeColors.Background,
+                    titleContentColor = WorkHomeColors.PrimaryText,
+                    actionIconContentColor = WorkHomeColors.SecondaryText,
+                ),
             )
         },
         bottomBar = {
-            NavigationBar {
-                navItems.forEach { (route, label) ->
-                    val selected = backStackEntry?.destination?.hierarchy?.any { it.route == route } == true
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            if (!selected) {
-                                navController.navigate(route) {
-                                    launchSingleTop = true
-                                    restoreState = true
-                                    popUpTo(navController.graph.startDestinationId) {
-                                        saveState = true
+            Surface(
+                shape = WorkHomeShapes.BottomNavShape,
+                color = WorkHomeColors.CardBackground.copy(alpha = 0.95f),
+                border = BorderStroke(1.dp, WorkHomeColors.NavBorderBrush),
+                shadowElevation = 8.dp,
+            ) {
+                NavigationBar(
+                    containerColor = Color.Transparent,
+                    tonalElevation = 0.dp,
+                ) {
+                    navItems.forEach { (route, label) ->
+                        val selected = backStackEntry?.destination?.hierarchy?.any { it.route == route } == true
+                        val iconVector = when (route) {
+                            Routes.Chores -> Icons.Filled.TaskAlt
+                            Routes.Rewards -> Icons.Filled.EmojiEvents
+                            Routes.Users -> Icons.Filled.Group
+                            else -> Icons.Filled.Star
+                        }
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                if (!selected) {
+                                    navController.navigate(route) {
+                                        launchSingleTop = true
+                                        restoreState = true
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        icon = { Text(label.take(1)) },
-                        label = { Text(label) },
-                    )
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = iconVector,
+                                    contentDescription = label,
+                                )
+                            },
+                            label = {
+                                Text(
+                                    label,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = WorkHomeColors.CyanAccent,
+                                selectedTextColor = WorkHomeColors.CyanAccent,
+                                indicatorColor = Color(0xFF142B50),
+                                unselectedIconColor = WorkHomeColors.SecondaryText.copy(alpha = 0.7f),
+                                unselectedTextColor = WorkHomeColors.SecondaryText.copy(alpha = 0.7f),
+                            ),
+                        )
+                    }
                 }
             }
         },
@@ -431,114 +516,374 @@ private fun ChoresScreen(
 
     val templateFormEnabled = !state.templateFormSubmitting && state.busyTemplateActions.isEmpty()
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Scaffold(
+        containerColor = WorkHomeColors.Background,
+        contentColor = WorkHomeColors.PrimaryText,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = WorkHomeDimens.ScreenHorizontalPadding),
             contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(WorkHomeDimens.SpacingBetweenCards),
         ) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Your total reward: ${currentUser.currentRewardTotal}")
-                    Text("Days left this month: $daysLeftInMonth")
-                    Text("Active chores", fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(WorkHomeDimens.SpacingBetweenCards),
+                ) {
+                    // Card 1: Total reward
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = WorkHomeShapes.CardShape,
+                        color = WorkHomeColors.CardBackground,
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                        shadowElevation = 2.dp,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(WorkHomeColors.CardGradient)
+                                .padding(WorkHomeDimens.CardPadding),
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(
+                                                color = WorkHomeColors.RewardStar.copy(alpha = 0.15f),
+                                                shape = WorkHomeShapes.BadgeShape,
+                                            ),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.EmojiEvents,
+                                            contentDescription = null,
+                                            tint = WorkHomeColors.RewardStar,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                    Text(
+                                        text = "Total reward",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = WorkHomeColors.SecondaryText,
+                                    )
+                                }
+                                Text(
+                                    text = "${currentUser.currentRewardTotal}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WorkHomeColors.PrimaryText,
+                                )
+                            }
+                        }
+                    }
+
+                    // Card 2: Days left
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = WorkHomeShapes.CardShape,
+                        color = WorkHomeColors.CardBackground,
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                        shadowElevation = 2.dp,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(WorkHomeColors.CardGradient)
+                                .padding(WorkHomeDimens.CardPadding),
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(
+                                                color = WorkHomeColors.CyanAccent.copy(alpha = 0.15f),
+                                                shape = WorkHomeShapes.BadgeShape,
+                                            ),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.CalendarMonth,
+                                            contentDescription = null,
+                                            tint = WorkHomeColors.CyanAccent,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                    Text(
+                                        text = "Days left",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = WorkHomeColors.SecondaryText,
+                                    )
+                                }
+                                Text(
+                                    text = "$daysLeftInMonth",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WorkHomeColors.PrimaryText,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Active chores",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WorkHomeColors.PrimaryText,
+                    )
+                    Surface(
+                        shape = WorkHomeShapes.BadgeShape,
+                        color = Color(0xFF0F264A),
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
+                    ) {
+                        Text(
+                            text = "${state.chores.size} ${if (state.chores.size == 1) "task" else "tasks"}",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = WorkHomeColors.CyanAccent,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
 
             if (currentUser.isAdmin) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Create custom chore", fontWeight = FontWeight.Bold)
-                            OutlinedTextField(
-                                value = state.choreTitleInput,
-                                onValueChange = onChoreTitleChange,
-                                label = { Text("Title") },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !state.createChoreSubmitting,
-                            )
-                            OutlinedTextField(
-                                value = state.choreRewardInputText,
-                                onValueChange = onChoreRewardChange,
-                                label = { Text("Reward") },
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                enabled = !state.createChoreSubmitting,
-                            )
-                            Text("Assign to (optional):", style = MaterialTheme.typography.labelMedium)
-                            Row(
-                                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                FilterChip(
-                                    selected = state.selectedAssigneeUser == null,
-                                    onClick = { onSelectAssignee(null) },
-                                    label = { Text("Unassigned") },
-                                    enabled = !state.createChoreSubmitting,
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = WorkHomeShapes.CardShape,
+                        color = WorkHomeColors.CardBackground,
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                        shadowElevation = 2.dp,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(WorkHomeColors.CardGradient)
+                                .padding(WorkHomeDimens.CardPadding),
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Create custom chore",
+                                    fontWeight = FontWeight.Bold,
+                                    color = WorkHomeColors.PrimaryText,
                                 )
-                                state.usersList.forEach { user ->
-                                    FilterChip(
-                                        selected = state.selectedAssigneeUser?.id == user.id,
-                                        onClick = { onSelectAssignee(user) },
-                                        label = { Text(user.name) },
-                                        enabled = !state.createChoreSubmitting,
-                                    )
-                                }
-                            }
-                            if (state.selectedAssigneeUser != null) {
+                                OutlinedTextField(
+                                    value = state.choreTitleInput,
+                                    onValueChange = onChoreTitleChange,
+                                    label = { Text("Title") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !state.createChoreSubmitting,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = WorkHomeColors.CyanAccent,
+                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                        focusedLabelColor = WorkHomeColors.CyanAccent,
+                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                        focusedTextColor = WorkHomeColors.PrimaryText,
+                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                        cursorColor = WorkHomeColors.CyanAccent,
+                                    ),
+                                )
+                                OutlinedTextField(
+                                    value = state.choreRewardInputText,
+                                    onValueChange = onChoreRewardChange,
+                                    label = { Text("Reward") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    enabled = !state.createChoreSubmitting,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = WorkHomeColors.CyanAccent,
+                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                        focusedLabelColor = WorkHomeColors.CyanAccent,
+                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                        focusedTextColor = WorkHomeColors.PrimaryText,
+                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                        cursorColor = WorkHomeColors.CyanAccent,
+                                    ),
+                                )
+                                Text(
+                                    text = "Assign to (optional):",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = WorkHomeColors.SecondaryText,
+                                )
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Checkbox(
-                                        checked = state.markCompletedInput,
-                                        onCheckedChange = onToggleMarkCompleted,
+                                    FilterChip(
+                                        selected = state.selectedAssigneeUser == null,
+                                        onClick = { onSelectAssignee(null) },
+                                        label = { Text("Unassigned") },
                                         enabled = !state.createChoreSubmitting,
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = Color(0xFF142B50),
+                                            selectedLabelColor = WorkHomeColors.CyanAccent,
+                                            containerColor = Color(0xFF08162B),
+                                            labelColor = WorkHomeColors.SecondaryText,
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = !state.createChoreSubmitting,
+                                            selected = state.selectedAssigneeUser == null,
+                                            borderColor = if (state.selectedAssigneeUser == null) WorkHomeColors.CyanAccent else WorkHomeColors.CardBorderBlue,
+                                        ),
                                     )
-                                    Text("Mark as completed immediately")
+                                    state.usersList.forEach { user ->
+                                        FilterChip(
+                                            selected = state.selectedAssigneeUser?.id == user.id,
+                                            onClick = { onSelectAssignee(user) },
+                                            label = { Text(user.name) },
+                                            enabled = !state.createChoreSubmitting,
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = Color(0xFF142B50),
+                                                selectedLabelColor = WorkHomeColors.CyanAccent,
+                                                containerColor = Color(0xFF08162B),
+                                                labelColor = WorkHomeColors.SecondaryText,
+                                            ),
+                                            border = FilterChipDefaults.filterChipBorder(
+                                                enabled = !state.createChoreSubmitting,
+                                                selected = state.selectedAssigneeUser?.id == user.id,
+                                                borderColor = if (state.selectedAssigneeUser?.id == user.id) WorkHomeColors.CyanAccent else WorkHomeColors.CardBorderBlue,
+                                            ),
+                                        )
+                                    }
                                 }
-                            }
-                            Button(
-                                onClick = onCreateChore,
-                                enabled = !state.createChoreSubmitting,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(if (state.createChoreSubmitting) "Creating..." else "Create chore")
+                                if (state.selectedAssigneeUser != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Checkbox(
+                                            checked = state.markCompletedInput,
+                                            onCheckedChange = onToggleMarkCompleted,
+                                            enabled = !state.createChoreSubmitting,
+                                        )
+                                        Text(
+                                            text = "Mark as completed immediately",
+                                            color = WorkHomeColors.PrimaryText,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                }
+                                Button(
+                                    onClick = onCreateChore,
+                                    enabled = !state.createChoreSubmitting,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = WorkHomeShapes.PillShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = WorkHomeColors.PrimaryBlue,
+                                        contentColor = Color.White,
+                                    ),
+                                ) {
+                                    Text(
+                                        text = if (state.createChoreSubmitting) "Creating..." else "Create chore",
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(if (state.editingTemplateId == null) "Save chore template" else "Edit chore template", fontWeight = FontWeight.Bold)
-                            OutlinedTextField(
-                                value = state.templateTitle,
-                                onValueChange = onTemplateTitleChange,
-                                label = { Text("Title") },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = templateFormEnabled,
-                            )
-                            OutlinedTextField(
-                                value = state.templateRewardText,
-                                onValueChange = onTemplateRewardChange,
-                                label = { Text("Reward") },
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                enabled = templateFormEnabled,
-                            )
-                            Button(onClick = onSaveTemplate, enabled = templateFormEnabled) {
-                                Text(if (state.editingTemplateId == null) "Save template" else "Update template")
-                            }
-                            if (state.editingTemplateId != null) {
-                                OutlinedButton(onClick = onCancelTemplateEdit, enabled = templateFormEnabled) {
-                                    Text("Cancel edit")
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = WorkHomeShapes.CardShape,
+                        color = WorkHomeColors.CardBackground,
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                        shadowElevation = 2.dp,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(WorkHomeColors.CardGradient)
+                                .padding(WorkHomeDimens.CardPadding),
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = if (state.editingTemplateId == null) "Save chore template" else "Edit chore template",
+                                    fontWeight = FontWeight.Bold,
+                                    color = WorkHomeColors.PrimaryText,
+                                )
+                                OutlinedTextField(
+                                    value = state.templateTitle,
+                                    onValueChange = onTemplateTitleChange,
+                                    label = { Text("Title") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = templateFormEnabled,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = WorkHomeColors.CyanAccent,
+                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                        focusedLabelColor = WorkHomeColors.CyanAccent,
+                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                        focusedTextColor = WorkHomeColors.PrimaryText,
+                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                        cursorColor = WorkHomeColors.CyanAccent,
+                                    ),
+                                )
+                                OutlinedTextField(
+                                    value = state.templateRewardText,
+                                    onValueChange = onTemplateRewardChange,
+                                    label = { Text("Reward") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    enabled = templateFormEnabled,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = WorkHomeColors.CyanAccent,
+                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                        focusedLabelColor = WorkHomeColors.CyanAccent,
+                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                        focusedTextColor = WorkHomeColors.PrimaryText,
+                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                        cursorColor = WorkHomeColors.CyanAccent,
+                                    ),
+                                )
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Button(
+                                        onClick = onSaveTemplate,
+                                        enabled = templateFormEnabled,
+                                        shape = WorkHomeShapes.PillShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = WorkHomeColors.PrimaryBlue,
+                                            contentColor = Color.White,
+                                        ),
+                                    ) {
+                                        Text(if (state.editingTemplateId == null) "Save template" else "Update template")
+                                    }
+                                    if (state.editingTemplateId != null) {
+                                        OutlinedButton(
+                                            onClick = onCancelTemplateEdit,
+                                            enabled = templateFormEnabled,
+                                            shape = WorkHomeShapes.PillShape,
+                                            border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
+                                        ) {
+                                            Text("Cancel edit")
+                                        }
+                                    }
                                 }
-                            }
-                            if (state.templateFormSubmitting) {
-                                Text("Saving template...")
-                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                if (state.templateFormSubmitting) {
+                                    Text("Saving template...", color = WorkHomeColors.SecondaryText, style = MaterialTheme.typography.bodySmall)
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = WorkHomeColors.CyanAccent)
+                                }
                             }
                         }
                     }
@@ -546,7 +891,12 @@ private fun ChoresScreen(
 
                 if (state.choreTemplates.isNotEmpty()) {
                     item {
-                        Text("Templates", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Templates",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = WorkHomeColors.PrimaryText,
+                        )
                     }
                     items(state.choreTemplates, key = { it.id }) { template ->
                         ChoreTemplateRow(
@@ -561,6 +911,30 @@ private fun ChoresScreen(
                 }
             }
 
+            if (state.chores.isEmpty()) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = WorkHomeShapes.CardShape,
+                        color = WorkHomeColors.CardBackground,
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(WorkHomeColors.CardGradient)
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "No active chores right now.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = WorkHomeColors.SecondaryText,
+                            )
+                        }
+                    }
+                }
+            }
+
             items(state.chores, key = { it.id }) { chore ->
                 val busyAction = state.busyChoreActions[chore.id]
                 val isOpen = chore.assignedToUserId.isBlank()
@@ -569,46 +943,241 @@ private fun ChoresScreen(
                 val isCompletedThisMonth = state.completedChores.any {
                     it.choreId == chore.id && it.userId == currentUser.authUid
                 }
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(chore.title, fontWeight = FontWeight.Bold)
-                        Text("Reward: ${chore.reward}")
-                        when {
-                            isOpen -> {
-                                Button(onClick = { onAssignChore(chore) }, enabled = busyAction == null) {
-                                    Text(if (busyAction == ChoreRowAction.ASSIGN) "Assigning..." else "Assign to me")
-                                }
-                            }
-
-                            isAssignedToCurrentUser -> {
-                                Text("Assigned to you")
-                                if (isCompletedThisMonth) {
-                                    Text(
-                                        "Completed for this month",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium,
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = WorkHomeShapes.CardShape,
+                    color = WorkHomeColors.CardBackground,
+                    border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                    shadowElevation = 2.dp,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(WorkHomeColors.CardGradient)
+                            .padding(WorkHomeDimens.CardPadding),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .background(
+                                            color = Color(0xFF10284D),
+                                            shape = WorkHomeShapes.IconContainerShape,
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = WorkHomeColors.CardBorder,
+                                            shape = WorkHomeShapes.IconContainerShape,
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = choreIconForTitle(chore.title),
+                                        contentDescription = null,
+                                        tint = WorkHomeColors.CyanAccent,
+                                        modifier = Modifier.size(22.dp),
                                     )
-                                } else {
-                                    Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
-                                        Text(if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me")
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text(
+                                        text = chore.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = WorkHomeColors.PrimaryText,
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Star,
+                                            contentDescription = "Reward",
+                                            tint = WorkHomeColors.RewardStar,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = "Reward: ${chore.reward}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = WorkHomeColors.SecondaryText,
+                                        )
+                                    }
+                                    val assignmentText = when {
+                                        isOpen -> "Unassigned"
+                                        isAssignedToCurrentUser -> "Assigned to you"
+                                        currentUser.isAdmin -> "Assigned to ${assigneeName ?: "another user"}"
+                                        else -> "Assigned"
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Person,
+                                            contentDescription = "Assignee",
+                                            tint = if (isAssignedToCurrentUser) WorkHomeColors.CyanAccent else WorkHomeColors.SecondaryText,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = assignmentText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isAssignedToCurrentUser) WorkHomeColors.CyanAccent else WorkHomeColors.SecondaryText,
+                                        )
                                     }
                                 }
                             }
 
-                            currentUser.isAdmin -> {
-                                Text("Assigned to ${assigneeName ?: "another user"}")
-                            }
-                        }
+                            when {
+                                isOpen -> {
+                                    Button(
+                                        onClick = { onAssignChore(chore) },
+                                        enabled = busyAction == null,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        shape = WorkHomeShapes.PillShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = WorkHomeColors.PrimaryBlue,
+                                            contentColor = Color.White,
+                                        ),
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.PersonAdd,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                            Text(
+                                                text = if (busyAction == ChoreRowAction.ASSIGN) "Assigning..." else "Assign to me",
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
+                                    }
+                                }
 
-                        if (currentUser.isAdmin && !isOpen) {
-                            OutlinedButton(onClick = { onResetAssignment(chore) }, enabled = busyAction == null) {
-                                Text(if (busyAction == ChoreRowAction.RESET) "Resetting..." else "Reset assignment")
+                                isAssignedToCurrentUser -> {
+                                    if (isCompletedThisMonth) {
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = WorkHomeShapes.PillShape,
+                                            color = Color(0xFF0E2E44),
+                                            border = BorderStroke(1.dp, WorkHomeColors.CyanAccent.copy(alpha = 0.5f)),
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = WorkHomeColors.CyanAccent,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Completed for this month",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = WorkHomeColors.CyanAccent,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = { onCompleteChore(chore) },
+                                            enabled = busyAction == null,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(50.dp),
+                                            shape = WorkHomeShapes.PillShape,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color.Transparent,
+                                                disabledContainerColor = Color(0x332979FF),
+                                            ),
+                                            contentPadding = PaddingValues(),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .then(
+                                                        if (busyAction == null) {
+                                                            Modifier.background(
+                                                                brush = WorkHomeColors.CompleteButtonGradient,
+                                                                shape = WorkHomeShapes.PillShape,
+                                                            )
+                                                        } else {
+                                                            Modifier.background(
+                                                                color = Color(0x442979FF),
+                                                                shape = WorkHomeShapes.PillShape,
+                                                            )
+                                                        }
+                                                    ),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Check,
+                                                        contentDescription = null,
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(20.dp),
+                                                    )
+                                                    Text(
+                                                        text = if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me",
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                currentUser.isAdmin -> {
+                                    // Admin viewing someone else's chore
+                                }
                             }
-                        }
-                        if (currentUser.isAdmin) {
-                            OutlinedButton(onClick = { choreToDelete = chore }, enabled = busyAction == null) {
-                                Text(if (busyAction == ChoreRowAction.DELETE) "Deleting..." else "Delete chore")
+
+                            if (currentUser.isAdmin && !isOpen) {
+                                OutlinedButton(
+                                    onClick = { onResetAssignment(chore) },
+                                    enabled = busyAction == null,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = WorkHomeShapes.PillShape,
+                                    border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = WorkHomeColors.SecondaryText,
+                                    ),
+                                ) {
+                                    Text(if (busyAction == ChoreRowAction.RESET) "Resetting..." else "Reset assignment")
+                                }
+                            }
+                            if (currentUser.isAdmin) {
+                                OutlinedButton(
+                                    onClick = { choreToDelete = chore },
+                                    enabled = busyAction == null,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = WorkHomeShapes.PillShape,
+                                    border = BorderStroke(1.dp, Color(0x33FF5252)),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color(0xFFFF6E6E),
+                                    ),
+                                ) {
+                                    Text(if (busyAction == ChoreRowAction.DELETE) "Deleting..." else "Delete chore")
+                                }
                             }
                         }
                     }
@@ -617,12 +1186,17 @@ private fun ChoresScreen(
 
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Completed chores", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Completed chores",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WorkHomeColors.PrimaryText,
+                    )
                     if (state.completedChores.isEmpty()) {
                         Text(
-                            "No completed chores yet.",
+                            text = "No completed chores yet.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = WorkHomeColors.SecondaryText,
                         )
                     }
                 }
@@ -630,17 +1204,22 @@ private fun ChoresScreen(
 
             if (state.completedChores.isNotEmpty()) {
                 item {
-                    Card(
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        ),
+                        shape = WorkHomeShapes.CardShape,
+                        color = WorkHomeColors.CardBackground,
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                        shadowElevation = 2.dp,
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier
+                                .background(WorkHomeColors.CardGradient)
+                                .fillMaxWidth()
+                        ) {
                             state.completedChores.forEachIndexed { index, completed ->
                                 if (index > 0) {
                                     HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                        color = WorkHomeColors.CardBorderBlue.copy(alpha = 0.5f),
                                     )
                                 }
                                 CompletedChoreRow(
@@ -664,12 +1243,15 @@ private fun ChoresScreen(
                     choreToDelete = null
                 }
             },
+            containerColor = WorkHomeColors.CardBackground,
+            titleContentColor = WorkHomeColors.PrimaryText,
+            textContentColor = WorkHomeColors.SecondaryText,
             confirmButton = {
                 TextButton(
                     onClick = { onDeleteChore(chore) },
                     enabled = !choreDeleteBusy,
                 ) {
-                    Text("Delete")
+                    Text("Delete", color = Color(0xFFFF6E6E))
                 }
             },
             dismissButton = {
@@ -677,7 +1259,7 @@ private fun ChoresScreen(
                     onClick = { choreToDelete = null },
                     enabled = !choreDeleteBusy,
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", color = WorkHomeColors.SecondaryText)
                 }
             },
             title = { Text("Delete chore?") },
@@ -685,7 +1267,7 @@ private fun ChoresScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(chore.title)
                     if (choreDeleteBusy) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = WorkHomeColors.CyanAccent)
                     }
                 }
             },
@@ -700,12 +1282,15 @@ private fun ChoresScreen(
                     templateToDelete = null
                 }
             },
+            containerColor = WorkHomeColors.CardBackground,
+            titleContentColor = WorkHomeColors.PrimaryText,
+            textContentColor = WorkHomeColors.SecondaryText,
             confirmButton = {
                 TextButton(
                     onClick = { onDeleteTemplate(template) },
                     enabled = !templateDeleteBusy,
                 ) {
-                    Text("Delete")
+                    Text("Delete", color = Color(0xFFFF6E6E))
                 }
             },
             dismissButton = {
@@ -713,7 +1298,7 @@ private fun ChoresScreen(
                     onClick = { templateToDelete = null },
                     enabled = !templateDeleteBusy,
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", color = WorkHomeColors.SecondaryText)
                 }
             },
             title = { Text("Delete template?") },
@@ -721,7 +1306,7 @@ private fun ChoresScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(template.title)
                     if (templateDeleteBusy) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = WorkHomeColors.CyanAccent)
                     }
                 }
             },
@@ -730,6 +1315,20 @@ private fun ChoresScreen(
 }
 
 internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
+
+private fun choreIconForTitle(title: String): ImageVector {
+    val lower = title.lowercase()
+    return when {
+        lower.contains("clean") || lower.contains("wash") || lower.contains("mop") || lower.contains("sweep") || lower.contains("broom") -> Icons.Filled.CleaningServices
+        lower.contains("table") || lower.contains("dish") || lower.contains("dinner") || lower.contains("lunch") || lower.contains("breakfast") || lower.contains("food") || lower.contains("kitchen") -> Icons.Filled.Restaurant
+        lower.contains("vacuum") || lower.contains("dust") || lower.contains("laundry") || lower.contains("fold") || lower.contains("clothes") -> Icons.Filled.DryCleaning
+        lower.contains("trash") || lower.contains("garbage") || lower.contains("bin") -> Icons.Filled.DeleteOutline
+        lower.contains("bed") || lower.contains("bedroom") || lower.contains("room") -> Icons.Filled.Bed
+        lower.contains("dog") || lower.contains("cat") || lower.contains("pet") -> Icons.Filled.Pets
+        lower.contains("garden") || lower.contains("yard") || lower.contains("lawn") || lower.contains("plant") -> Icons.Filled.Yard
+        else -> Icons.Filled.TaskAlt
+    }
+}
 
 @Composable
 private fun CompletedChoreRow(
@@ -740,7 +1339,7 @@ private fun CompletedChoreRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -752,6 +1351,7 @@ private fun CompletedChoreRow(
                 text = completed.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = WorkHomeColors.PrimaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -766,16 +1366,27 @@ private fun CompletedChoreRow(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = WorkHomeColors.SecondaryText,
             )
         }
-        Text(
-            text = "+${completed.reward}",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.padding(start = 8.dp),
-        )
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = null,
+                tint = WorkHomeColors.RewardStar,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = "+${completed.reward}",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = WorkHomeColors.RewardStar,
+            )
+        }
     }
 }
 
@@ -789,27 +1400,70 @@ private fun ChoreTemplateRow(
     onDeleteTemplate: (ChoreTemplate) -> Unit,
 ) {
     val isBusy = templateFormSubmitting || busyAction != null
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(template.title, fontWeight = FontWeight.Bold)
-            Text("Reward: ${template.reward}")
-            Button(
-                onClick = { onActivateTemplate(template) },
-                enabled = !isBusy,
-            ) {
-                Text(if (busyAction == TemplateRowAction.ACTIVATE) "Activating..." else "Activate")
-            }
-            OutlinedButton(
-                onClick = { onEditTemplate(template) },
-                enabled = !isBusy,
-            ) {
-                Text("Edit")
-            }
-            OutlinedButton(
-                onClick = { onDeleteTemplate(template) },
-                enabled = !isBusy,
-            ) {
-                Text(if (busyAction == TemplateRowAction.DELETE) "Deleting..." else "Delete")
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = WorkHomeShapes.CardShape,
+        color = WorkHomeColors.CardBackground,
+        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+        shadowElevation = 2.dp,
+    ) {
+        Box(
+            modifier = Modifier
+                .background(WorkHomeColors.CardGradient)
+                .padding(WorkHomeDimens.CardPadding),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = template.title,
+                    fontWeight = FontWeight.Bold,
+                    color = WorkHomeColors.PrimaryText,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = "Reward",
+                        tint = WorkHomeColors.RewardStar,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = "Reward: ${template.reward}",
+                        color = WorkHomeColors.SecondaryText,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = { onActivateTemplate(template) },
+                        enabled = !isBusy,
+                        shape = WorkHomeShapes.PillShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = WorkHomeColors.PrimaryBlue),
+                    ) {
+                        Text(if (busyAction == TemplateRowAction.ACTIVATE) "Activating..." else "Activate")
+                    }
+                    OutlinedButton(
+                        onClick = { onEditTemplate(template) },
+                        enabled = !isBusy,
+                        shape = WorkHomeShapes.PillShape,
+                        border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
+                    ) {
+                        Text("Edit")
+                    }
+                    OutlinedButton(
+                        onClick = { onDeleteTemplate(template) },
+                        enabled = !isBusy,
+                        shape = WorkHomeShapes.PillShape,
+                        border = BorderStroke(1.dp, Color(0x33FF5252)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF6E6E)),
+                    ) {
+                        Text(if (busyAction == TemplateRowAction.DELETE) "Deleting..." else "Delete")
+                    }
+                }
             }
         }
     }
