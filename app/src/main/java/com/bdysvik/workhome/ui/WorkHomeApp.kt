@@ -330,7 +330,12 @@ private fun HomeScaffold(
                     RewardsViewModel(appContainer.familyRepository, currentUser)
                 })
                 val state by vm.uiState.collectAsStateWithLifecycle()
-                RewardsScreen(state, vm::resetRewards, vm::clearMessage)
+                RewardsScreen(
+                    state = state,
+                    onResetRewards = vm::resetRewards,
+                    onSetUserGoal = vm::setUserGoal,
+                    onClearMessage = vm::clearMessage,
+                )
             }
             if (currentUser.isAdmin) {
                 composable(Routes.Users) {
@@ -344,6 +349,7 @@ private fun HomeScaffold(
                         onEmailChange = vm::updateEmail,
                         onRoleChange = vm::updateRole,
                         onAddUser = vm::addPendingUser,
+                        onSetUserGoal = vm::setUserGoal,
                         onRemoveUser = vm::removeUser,
                         onRemovePendingUser = vm::removePendingUser,
                         onClearMessage = vm::clearMessage,
@@ -599,8 +605,12 @@ private fun ChoresScreen(
                                     )
                                 }
                                 Text(
-                                    text = "${currentUser.currentRewardTotal}",
-                                    style = MaterialTheme.typography.headlineMedium,
+                                    text = currentUser.rewardProgressText(),
+                                    style = if (currentUser.rewardGoal != null && currentUser.rewardGoal > 0) {
+                                        MaterialTheme.typography.titleLarge
+                                    } else {
+                                        MaterialTheme.typography.headlineMedium
+                                    },
                                     fontWeight = FontWeight.Bold,
                                     color = WorkHomeColors.PrimaryText,
                                 )
@@ -1500,6 +1510,7 @@ private fun UsersScreen(
     onEmailChange: (String) -> Unit,
     onRoleChange: (UserRole) -> Unit,
     onAddUser: () -> Unit,
+    onSetUserGoal: (AppUser, Long?) -> Unit,
     onRemoveUser: (AppUser) -> Unit,
     onRemovePendingUser: (PendingUser) -> Unit,
     onClearMessage: () -> Unit,
@@ -1507,6 +1518,7 @@ private fun UsersScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var userToRemove by remember { mutableStateOf<AppUser?>(null) }
     var pendingToRemove by remember { mutableStateOf<PendingUser?>(null) }
+    var userForGoalSetting by remember { mutableStateOf<AppUser?>(null) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -1544,8 +1556,14 @@ private fun UsersScreen(
                         Text(user.name, fontWeight = FontWeight.Bold)
                         Text(user.email)
                         Text("Role: ${user.role.value}")
-                        OutlinedButton(onClick = { userToRemove = user }, enabled = !state.submitting) {
-                            Text("Remove profile")
+                        Text("Goal: ${user.rewardGoal?.let { "$it" } ?: "Not set"}")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { userForGoalSetting = user }, enabled = !state.submitting) {
+                                Text("Set goal")
+                            }
+                            OutlinedButton(onClick = { userToRemove = user }, enabled = !state.submitting) {
+                                Text("Remove profile")
+                            }
                         }
                     }
                 }
@@ -1590,6 +1608,17 @@ private fun UsersScreen(
             onDismiss = { pendingToRemove = null },
         )
     }
+
+    userForGoalSetting?.let { user ->
+        SetGoalDialog(
+            user = user,
+            onConfirm = { goal ->
+                onSetUserGoal(user, goal)
+                userForGoalSetting = null
+            },
+            onDismiss = { userForGoalSetting = null },
+        )
+    }
 }
 
 @Composable
@@ -1611,10 +1640,12 @@ private fun RowRoles(
 private fun RewardsScreen(
     state: RewardsUiState,
     onResetRewards: () -> Unit,
+    onSetUserGoal: (AppUser, Long?) -> Unit = { _, _ -> },
     onClearMessage: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showResetConfirmation by rememberSaveable { mutableStateOf(false) }
+    var userForGoalSetting by remember { mutableStateOf<AppUser?>(null) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -1653,8 +1684,19 @@ private fun RewardsScreen(
                 }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(user.name, fontWeight = FontWeight.Bold)
-                        Text("Total rewards: ${user.currentRewardTotal}")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(user.name, fontWeight = FontWeight.Bold)
+                            if (state.currentUser.isAdmin) {
+                                TextButton(onClick = { userForGoalSetting = user }) {
+                                    Text("Set goal")
+                                }
+                            }
+                        }
+                        Text("Total rewards: ${user.rewardProgressText()}")
                         Text("Days since last completed chore: $daysText")
                     }
                 }
@@ -1671,6 +1713,17 @@ private fun RewardsScreen(
                 showResetConfirmation = false
             },
             onDismiss = { showResetConfirmation = false },
+        )
+    }
+
+    userForGoalSetting?.let { user ->
+        SetGoalDialog(
+            user = user,
+            onConfirm = { goal ->
+                onSetUserGoal(user, goal)
+                userForGoalSetting = null
+            },
+            onDismiss = { userForGoalSetting = null },
         )
     }
 }
@@ -1696,6 +1749,65 @@ private fun ConfirmDialog(
         },
         title = { Text(title) },
         text = { Text(body) },
+    )
+}
+
+@Composable
+private fun SetGoalDialog(
+    user: AppUser,
+    onConfirm: (Long?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var goalText by remember { mutableStateOf(user.rewardGoal?.toString().orEmpty()) }
+    var errorText by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set reward goal") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Set reward goal for ${user.name}:")
+                OutlinedTextField(
+                    value = goalText,
+                    onValueChange = { input ->
+                        goalText = input.filter { it.isDigit() }
+                        errorText = null
+                    },
+                    label = { Text("Reward goal") },
+                    placeholder = { Text("e.g. 500") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = errorText != null,
+                    supportingText = {
+                        Text(errorText ?: "Leave empty to clear goal")
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (goalText.isBlank()) {
+                        onConfirm(null)
+                    } else {
+                        val parsed = goalText.toLongOrNull()
+                        if (parsed == null || parsed <= 0) {
+                            errorText = "Enter a valid positive number"
+                        } else {
+                            onConfirm(parsed)
+                        }
+                    }
+                },
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
     )
 }
 

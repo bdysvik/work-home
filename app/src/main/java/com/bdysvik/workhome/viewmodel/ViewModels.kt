@@ -522,6 +522,20 @@ class UsersViewModel(
             }
         }
     }
+
+    fun setUserGoal(user: AppUser, goal: Long?) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(submitting = true, message = null) }
+            val result = runCatching { familyRepository.setUserGoal(user.id, goal) }
+            _uiState.update {
+                it.copy(
+                    submitting = false,
+                    message = result.exceptionOrNull()?.localizedMessage
+                        ?: if (result.isSuccess) "Goal updated for ${user.name}." else null,
+                )
+            }
+        }
+    }
 }
 
 data class RewardsUiState(
@@ -540,9 +554,11 @@ class RewardsViewModel(
 
     init {
         viewModelScope.launch {
-            familyRepository.observeUsers().collect { users ->
-                _uiState.update { it.copy(users = users.sortedByDescending(AppUser::currentRewardTotal)) }
-            }
+            familyRepository.observeUsers()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { users ->
+                    _uiState.update { it.copy(users = users.sortedByDescending(AppUser::currentRewardTotal)) }
+                }
         }
     }
 
@@ -556,6 +572,18 @@ class RewardsViewModel(
                 it.copy(
                     resetting = false,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Rewards reset and archived." else null,
+                )
+            }
+        }
+    }
+
+    fun setUserGoal(user: AppUser, goal: Long?) {
+        viewModelScope.launch {
+            val result = runCatching { familyRepository.setUserGoal(user.id, goal) }
+            _uiState.update {
+                it.copy(
+                    message = result.exceptionOrNull()?.localizedMessage
+                        ?: if (result.isSuccess) "Goal updated for ${user.name}." else null,
                 )
             }
         }

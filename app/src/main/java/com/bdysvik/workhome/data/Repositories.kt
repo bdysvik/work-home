@@ -74,6 +74,7 @@ interface FamilyRepository {
     suspend fun deleteChore(choreId: String)
     suspend fun completeChore(chore: Chore, user: AppUser)
     suspend fun resetRewards(admin: AppUser)
+    suspend fun setUserGoal(userId: String, goal: Long?)
 }
 
 class FirebaseFamilyRepository(
@@ -372,6 +373,14 @@ class FirebaseFamilyRepository(
         }.await()
     }
 
+    override suspend fun setUserGoal(userId: String, goal: Long?) {
+        if (goal == null || goal <= 0) {
+            users.document(userId).update("rewardGoal", FieldValue.delete()).await()
+        } else {
+            users.document(userId).update("rewardGoal", goal).await()
+        }
+    }
+
     private fun <T> documentFlow(
         reference: com.google.firebase.firestore.DocumentReference,
         mapper: (com.google.firebase.firestore.DocumentSnapshot?) -> T,
@@ -406,6 +415,7 @@ class FirebaseFamilyRepository(
         val authUid = getString("authUid") ?: id
         val lastCompletedAtMillis = getTimestamp("lastCompletedAt")?.toDate()?.time
             ?: getLong("lastCompletedAt")
+        val rewardGoal = getLong("rewardGoal")
         return AppUser(
             id = id,
             name = name,
@@ -414,6 +424,7 @@ class FirebaseFamilyRepository(
             authUid = authUid,
             currentRewardTotal = getLong("currentRewardTotal") ?: 0L,
             lastCompletedAtMillis = lastCompletedAtMillis,
+            rewardGoal = rewardGoal,
         )
     }
 

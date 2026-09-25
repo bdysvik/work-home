@@ -24,6 +24,7 @@ data class AppUser(
     val authUid: String,
     val currentRewardTotal: Long,
     val lastCompletedAtMillis: Long? = null,
+    val rewardGoal: Long? = null,
 ) {
     val isAdmin: Boolean = role == UserRole.ADMIN
 
@@ -32,6 +33,16 @@ data class AppUser(
         val diffMillis = nowMillis - millis
         if (diffMillis < 0) return 0L
         return TimeUnit.MILLISECONDS.toDays(diffMillis)
+    }
+
+    fun rewardProgressText(): String {
+        val goal = rewardGoal
+        return if ((goal != null) && (goal > 0)) {
+            val percentage = Math.round((currentRewardTotal.toDouble() / goal) * 100)
+            "$currentRewardTotal / $goal ($percentage%)"
+        } else {
+            currentRewardTotal.toString()
+        }
     }
 }
 
