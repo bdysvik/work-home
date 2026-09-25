@@ -7,6 +7,8 @@ import com.bdysvik.workhome.data.AuthRepository
 import com.bdysvik.workhome.data.FirebaseAuthRepository
 import com.bdysvik.workhome.data.FirebaseFamilyRepository
 import com.bdysvik.workhome.data.FamilyRepository
+import com.bdysvik.workhome.notification.ChoreReminderScheduler
+import com.bdysvik.workhome.notification.NotificationHelper
 import com.bdysvik.workhome.ui.WorkHomeApp
 import com.bdysvik.workhome.ui.theme.WorkHomeTheme
 import com.google.firebase.FirebaseApp
@@ -21,6 +23,9 @@ data class AppContainer(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        NotificationHelper.createNotificationChannel(this)
+        ChoreReminderScheduler.scheduleDaily4PmReminder(this)
 
         val firebaseConfigured = FirebaseApp.initializeApp(this) != null || FirebaseApp.getApps(this).isNotEmpty()
         val appContainer = if (firebaseConfigured) {
