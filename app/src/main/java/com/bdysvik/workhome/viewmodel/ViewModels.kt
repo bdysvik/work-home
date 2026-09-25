@@ -6,6 +6,7 @@ import com.bdysvik.workhome.data.AppUser
 import com.bdysvik.workhome.data.AuthRepository
 import com.bdysvik.workhome.data.Chore
 import com.bdysvik.workhome.data.ChoreTemplate
+import com.bdysvik.workhome.data.CompletedChore
 import com.bdysvik.workhome.data.FamilyRepository
 import com.bdysvik.workhome.data.InputValidators
 import com.bdysvik.workhome.data.PendingUser
@@ -125,6 +126,7 @@ data class ChoresUiState(
     val currentUser: AppUser,
     val choreTemplates: List<ChoreTemplate> = emptyList(),
     val chores: List<Chore> = emptyList(),
+    val completedChores: List<CompletedChore> = emptyList(),
     val usersList: List<AppUser> = emptyList(),
     val usersByAuthUid: Map<String, String> = emptyMap(),
     val choreTitleInput: String = "",
@@ -175,6 +177,13 @@ class ChoresViewModel(
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
                 .collect { chores ->
                     _uiState.update { it.copy(chores = chores) }
+                }
+        }
+        viewModelScope.launch {
+            familyRepository.observeCompletedChores()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { completed ->
+                    _uiState.update { it.copy(completedChores = completed) }
                 }
         }
         viewModelScope.launch {

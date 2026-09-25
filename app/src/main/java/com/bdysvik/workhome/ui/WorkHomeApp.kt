@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
@@ -48,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -62,6 +65,7 @@ import com.bdysvik.workhome.AppContainer
 import com.bdysvik.workhome.data.AppUser
 import com.bdysvik.workhome.data.Chore
 import com.bdysvik.workhome.data.ChoreTemplate
+import com.bdysvik.workhome.data.CompletedChore
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
 import com.bdysvik.workhome.viewmodel.ChoreRowAction
@@ -562,6 +566,9 @@ private fun ChoresScreen(
                 val isOpen = chore.assignedToUserId.isBlank()
                 val isAssignedToCurrentUser = chore.assignedToUserId == currentUser.authUid
                 val assigneeName = state.usersByAuthUid[chore.assignedToUserId]
+                val isCompletedThisMonth = state.completedChores.any {
+                    it.choreId == chore.id && it.userId == currentUser.authUid
+                }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(chore.title, fontWeight = FontWeight.Bold)
@@ -575,8 +582,17 @@ private fun ChoresScreen(
 
                             isAssignedToCurrentUser -> {
                                 Text("Assigned to you")
-                                Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
-                                    Text(if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me")
+                                if (isCompletedThisMonth) {
+                                    Text(
+                                        "Completed for this month",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                } else {
+                                    Button(onClick = { onCompleteChore(chore) }, enabled = busyAction == null) {
+                                        Text(if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me")
+                                    }
                                 }
                             }
 
@@ -593,6 +609,45 @@ private fun ChoresScreen(
                         if (currentUser.isAdmin) {
                             OutlinedButton(onClick = { choreToDelete = chore }, enabled = busyAction == null) {
                                 Text(if (busyAction == ChoreRowAction.DELETE) "Deleting..." else "Delete chore")
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Completed chores", fontWeight = FontWeight.Bold)
+                    if (state.completedChores.isEmpty()) {
+                        Text(
+                            "No completed chores yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            if (state.completedChores.isNotEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        ),
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            state.completedChores.forEachIndexed { index, completed ->
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                    )
+                                }
+                                CompletedChoreRow(
+                                    completed = completed,
+                                    currentUser = currentUser,
+                                    assigneeName = completed.userName.ifBlank { state.usersByAuthUid[completed.userId] },
+                                )
                             }
                         }
                     }
@@ -675,6 +730,54 @@ private fun ChoresScreen(
 }
 
 internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
+
+@Composable
+private fun CompletedChoreRow(
+    completed: CompletedChore,
+    currentUser: AppUser,
+    assigneeName: String?,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = completed.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val displayName = assigneeName?.ifBlank { null }
+            val subtitle = buildString {
+                append(completed.formattedDate())
+                if (displayName != null) {
+                    append(" • ")
+                    append(if (completed.userId == currentUser.authUid) "you" else displayName)
+                }
+            }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = "+${completed.reward}",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
 
 @Composable
 private fun ChoreTemplateRow(
@@ -863,10 +966,18 @@ private fun RewardsScreen(
             }
 
             items(state.users, key = { it.id }) { user ->
+                val daysSince = user.daysSinceLastCompleted()
+                val daysText = when (daysSince) {
+                    null -> "None"
+                    0L -> "0 (Today)"
+                    1L -> "1 day ago"
+                    else -> "$daysSince days ago"
+                }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(user.name, fontWeight = FontWeight.Bold)
                         Text("Total rewards: ${user.currentRewardTotal}")
+                        Text("Days since last completed chore: $daysText")
                     }
                 }
             }

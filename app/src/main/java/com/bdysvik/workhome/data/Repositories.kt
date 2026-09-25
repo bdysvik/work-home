@@ -2,6 +2,7 @@ package com.bdysvik.workhome.data
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -52,6 +53,7 @@ interface FamilyRepository {
     fun observePendingUsers(): Flow<List<PendingUser>>
     fun observeChoreTemplates(): Flow<List<ChoreTemplate>>
     fun observeChores(currentUser: AppUser): Flow<List<Chore>>
+    fun observeCompletedChores(): Flow<List<CompletedChore>>
     suspend fun bootstrapUserProfile(userId: String, email: String?)
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
@@ -114,6 +116,12 @@ class FirebaseFamilyRepository(
                 currentUser.isAdmin || chore.assignedToUserId.isBlank() || chore.assignedToUserId == currentUser.authUid
             }
             .sortedBy { it.title }
+    }
+
+    override fun observeCompletedChores(): Flow<List<CompletedChore>> = collectionFlow(
+        completions.orderBy("completedAt", Query.Direction.DESCENDING)
+    ) { documents ->
+        documents.mapNotNull { it.toCompletedChore() }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -192,7 +200,7 @@ class FirebaseFamilyRepository(
         if (assignedToUser != null && markCompleted) {
             val periodId = currentPeriodId()
             val choreRef = chores.document()
-            val completionRef = completions.document("${periodId}_${assignedToUser.id}_${choreRef.id}")
+            val completionRef = completions.document("${periodId}_${assignedToUser.authUid}_${choreRef.id}")
             val userRef = users.document(assignedToUser.id)
 
             firestore.runTransaction { transaction ->
@@ -212,8 +220,11 @@ class FirebaseFamilyRepository(
                 transaction.set(
                     completionRef,
                     mapOf(
-                        "userId" to assignedToUser.id,
+                        "userId" to assignedToUser.authUid,
                         "choreId" to choreRef.id,
+                        "choreTitle" to title.trim(),
+                        "title" to title.trim(),
+                        "userName" to assignedToUser.name,
                         "periodId" to periodId,
                         "reward" to reward,
                         "completedAt" to FieldValue.serverTimestamp(),
@@ -224,6 +235,7 @@ class FirebaseFamilyRepository(
                     mapOf(
                         "currentRewardTotal" to currentRewardTotal + reward,
                         "lastCompletionId" to completionRef.id,
+                        "lastCompletedAt" to FieldValue.serverTimestamp(),
                     ),
                 )
                 null
@@ -281,7 +293,7 @@ class FirebaseFamilyRepository(
 
     override suspend fun completeChore(chore: Chore, user: AppUser) {
         val periodId = currentPeriodId()
-        val completionRef = completions.document("${periodId}_${user.id}_${chore.id}")
+        val completionRef = completions.document("${periodId}_${user.authUid}_${chore.id}")
         val userRef = users.document(user.id)
         val choreRef = chores.document(chore.id)
 
@@ -306,8 +318,11 @@ class FirebaseFamilyRepository(
             transaction.set(
                 completionRef,
                 mapOf(
-                    "userId" to user.id,
+                    "userId" to user.authUid,
                     "choreId" to chore.id,
+                    "choreTitle" to chore.title,
+                    "title" to chore.title,
+                    "userName" to user.name,
                     "periodId" to periodId,
                     "reward" to chore.reward,
                     "completedAt" to FieldValue.serverTimestamp(),
@@ -318,6 +333,7 @@ class FirebaseFamilyRepository(
                 mapOf(
                     "currentRewardTotal" to currentRewardTotal + chore.reward,
                     "lastCompletionId" to completionRef.id,
+                    "lastCompletedAt" to FieldValue.serverTimestamp(),
                 ),
             )
             null
@@ -388,6 +404,8 @@ class FirebaseFamilyRepository(
         val email = getString("email") ?: return null
         val name = getString("name") ?: return null
         val authUid = getString("authUid") ?: id
+        val lastCompletedAtMillis = getTimestamp("lastCompletedAt")?.toDate()?.time
+            ?: getLong("lastCompletedAt")
         return AppUser(
             id = id,
             name = name,
@@ -395,6 +413,7 @@ class FirebaseFamilyRepository(
             role = UserRole.from(getString("role")),
             authUid = authUid,
             currentRewardTotal = getLong("currentRewardTotal") ?: 0L,
+            lastCompletedAtMillis = lastCompletedAtMillis,
         )
     }
 
@@ -428,6 +447,28 @@ class FirebaseFamilyRepository(
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
             assignedToUserId = getString("assignedTo").orEmpty(),
+        )
+    }
+
+    private fun DocumentSnapshot.toCompletedChore(): CompletedChore? {
+        val choreId = getString("choreId") ?: return null
+        val userId = getString("userId") ?: return null
+        val title = choreTitle(
+            getString("choreTitle") ?: getString("title"),
+            getString("description"),
+        ) ?: "Completed chore"
+        val reward = getLong("reward") ?: 0L
+        val userName = getString("userName").orEmpty()
+        val completedAtMillis = getTimestamp("completedAt")?.toDate()?.time
+            ?: getLong("completedAt")
+        return CompletedChore(
+            id = id,
+            choreId = choreId,
+            title = title,
+            reward = reward,
+            userId = userId,
+            userName = userName,
+            completedAtMillis = completedAtMillis,
         )
     }
 
