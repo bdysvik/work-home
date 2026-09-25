@@ -451,6 +451,25 @@ class FirebaseFamilyRepository(
         val periodId = currentPeriodId()
         val choreRef = chores.document(chore.id)
 
+        // Pre-fetch chore to locate target user document reliably
+        val choreSnap = choreRef.get().await()
+        if (!choreSnap.exists()) {
+            throw IllegalStateException("Chore not found.")
+        }
+        val assignedTo = choreSnap.getString("assignedTo").orEmpty()
+            .ifEmpty { choreSnap.getString("createdBy").orEmpty() }
+        if (assignedTo.isEmpty()) {
+            throw IllegalStateException("No user assigned to this chore.")
+        }
+
+        val directUserRef = users.document(assignedTo)
+        val userDocRef = if (directUserRef.get().await().exists()) {
+            directUserRef
+        } else {
+            val querySnap = users.whereEqualTo("authUid", assignedTo).limit(1).get().await()
+            querySnap.documents.firstOrNull()?.reference ?: directUserRef
+        }
+
         firestore.runTransaction { transaction ->
             val choreSnapshot = transaction.get(choreRef)
             val active = choreSnapshot.getBoolean("active") ?: false
@@ -459,16 +478,17 @@ class FirebaseFamilyRepository(
                 throw IllegalStateException("This chore is no longer awaiting approval.")
             }
 
-            val assignedTo = choreSnapshot.getString("assignedTo").orEmpty()
-                .ifEmpty { choreSnapshot.getString("createdBy").orEmpty() }
-            if (assignedTo.isEmpty()) {
-                throw IllegalStateException("No user assigned to this chore.")
+            val userSnapshot = transaction.get(userDocRef)
+            val currentRewardTotal = if (userSnapshot.exists()) {
+                userSnapshot.getLong("currentRewardTotal") ?: 0L
+            } else {
+                0L
             }
-
-            val userRef = users.document(assignedTo)
-            val userSnapshot = transaction.get(userRef)
-            val currentRewardTotal = userSnapshot.getLong("currentRewardTotal") ?: 0L
-            val userName = userSnapshot.getString("name").orEmpty()
+            val userName = if (userSnapshot.exists()) {
+                userSnapshot.getString("name").orEmpty()
+            } else {
+                choreSnapshot.getString("userName").orEmpty()
+            }
 
             val completionRef = completions.document("${periodId}_${assignedTo}_${chore.id}")
             transaction.set(
@@ -486,14 +506,27 @@ class FirebaseFamilyRepository(
                     "approvedBy" to admin.authUid,
                 ),
             )
-            transaction.update(
-                userRef,
-                mapOf(
-                    "currentRewardTotal" to currentRewardTotal + chore.reward,
-                    "lastCompletionId" to completionRef.id,
-                    "lastCompletedAt" to FieldValue.serverTimestamp(),
-                ),
-            )
+            if (userSnapshot.exists()) {
+                transaction.update(
+                    userDocRef,
+                    mapOf(
+                        "currentRewardTotal" to currentRewardTotal + chore.reward,
+                        "lastCompletionId" to completionRef.id,
+                        "lastCompletedAt" to FieldValue.serverTimestamp(),
+                    ),
+                )
+            } else {
+                transaction.set(
+                    userDocRef,
+                    mapOf(
+                        "authUid" to assignedTo,
+                        "name" to userName,
+                        "currentRewardTotal" to chore.reward,
+                        "lastCompletionId" to completionRef.id,
+                        "lastCompletedAt" to FieldValue.serverTimestamp(),
+                    ),
+                )
+            }
             transaction.update(
                 choreRef,
                 mapOf(

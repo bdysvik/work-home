@@ -297,10 +297,17 @@ private fun HomeScaffold(
             }
         },
     ) { padding ->
-        val choresViewModel: ChoresViewModel = viewModel(factory = simpleFactory {
-            ChoresViewModel(appContainer.familyRepository, currentUser)
-        })
+        val choresViewModel: ChoresViewModel = viewModel(
+            key = currentUser.id,
+            factory = simpleFactory {
+                ChoresViewModel(appContainer.familyRepository, currentUser)
+            },
+        )
         val choresState by choresViewModel.uiState.collectAsStateWithLifecycle()
+
+        LaunchedEffect(currentUser) {
+            choresViewModel.updateCurrentUser(currentUser)
+        }
 
         NavHost(
             navController = navController,
@@ -321,7 +328,7 @@ private fun HomeScaffold(
                     onDeleteTemplate = choresViewModel::deleteTemplate,
                     onAssignChore = choresViewModel::assignChore,
                     onCompleteChore = choresViewModel::completeChore,
-                    onApproveChore = choresViewModel::approveChore,
+                    onApproveChore = { chore -> choresViewModel.approveChore(chore, currentUser) },
                     onResetAssignment = choresViewModel::resetChoreAssignment,
                     onDeleteChore = choresViewModel::deleteChore,
                     onClearMessage = choresViewModel::clearMessage,
@@ -332,7 +339,6 @@ private fun HomeScaffold(
                     currentUser = currentUser,
                     state = choresState,
                     onChoreTitleChange = choresViewModel::updateChoreTitleInput,
-                    onChoreDescriptionChange = choresViewModel::updateChoreDescriptionInput,
                     onChoreRewardChange = choresViewModel::updateChoreRewardInput,
                     onSelectAssignee = choresViewModel::selectAssigneeUser,
                     onToggleMarkCompleted = choresViewModel::toggleMarkCompleted,
@@ -341,9 +347,12 @@ private fun HomeScaffold(
                 )
             }
             composable(Routes.Rewards) {
-                val vm: RewardsViewModel = viewModel(factory = simpleFactory {
-                    RewardsViewModel(appContainer.familyRepository, currentUser)
-                })
+                val vm: RewardsViewModel = viewModel(
+                    key = currentUser.id,
+                    factory = simpleFactory {
+                        RewardsViewModel(appContainer.familyRepository, currentUser)
+                    },
+                )
                 val state by vm.uiState.collectAsStateWithLifecycle()
                 RewardsScreen(
                     state = state,
@@ -354,9 +363,12 @@ private fun HomeScaffold(
             }
             if (currentUser.isAdmin) {
                 composable(Routes.Users) {
-                    val vm: UsersViewModel = viewModel(factory = simpleFactory {
-                        UsersViewModel(appContainer.familyRepository)
-                    })
+                    val vm: UsersViewModel = viewModel(
+                        key = currentUser.id,
+                        factory = simpleFactory {
+                            UsersViewModel(appContainer.familyRepository)
+                        },
+                    )
                     val state by vm.uiState.collectAsStateWithLifecycle()
                     UsersScreen(
                         state = state,
@@ -1481,7 +1493,6 @@ private fun CreateChoreScreen(
     currentUser: AppUser,
     state: ChoresUiState,
     onChoreTitleChange: (String) -> Unit,
-    onChoreDescriptionChange: (String) -> Unit,
     onChoreRewardChange: (String) -> Unit,
     onSelectAssignee: (AppUser?) -> Unit,
     onToggleMarkCompleted: (Boolean) -> Unit,
@@ -1535,23 +1546,6 @@ private fun CreateChoreScreen(
                                 onValueChange = onChoreTitleChange,
                                 label = { Text("Title") },
                                 placeholder = { Text("e.g. Wash dishes") },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !state.createChoreSubmitting,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = WorkHomeColors.CyanAccent,
-                                    unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
-                                    focusedLabelColor = WorkHomeColors.CyanAccent,
-                                    unfocusedLabelColor = WorkHomeColors.SecondaryText,
-                                    focusedTextColor = WorkHomeColors.PrimaryText,
-                                    unfocusedTextColor = WorkHomeColors.PrimaryText,
-                                    cursorColor = WorkHomeColors.CyanAccent,
-                                ),
-                            )
-                            OutlinedTextField(
-                                value = state.choreDescriptionInput,
-                                onValueChange = onChoreDescriptionChange,
-                                label = { Text("Description") },
-                                placeholder = { Text("e.g. Empty dishwasher and scrub pans") },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !state.createChoreSubmitting,
                                 colors = OutlinedTextFieldDefaults.colors(

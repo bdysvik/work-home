@@ -1,5 +1,6 @@
 package com.bdysvik.workhome.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bdysvik.workhome.data.AppUser
@@ -130,7 +131,6 @@ data class ChoresUiState(
     val usersList: List<AppUser> = emptyList(),
     val usersByAuthUid: Map<String, String> = emptyMap(),
     val choreTitleInput: String = "",
-    val choreDescriptionInput: String = "",
     val choreRewardInputText: String = "",
     val selectedAssigneeUser: AppUser? = null,
     val markCompletedInput: Boolean = false,
@@ -207,7 +207,6 @@ class ChoresViewModel(
     }
 
     fun updateChoreTitleInput(value: String) = _uiState.update { it.copy(choreTitleInput = value) }
-    fun updateChoreDescriptionInput(value: String) = _uiState.update { it.copy(choreDescriptionInput = value) }
     fun updateChoreRewardInput(value: String) = _uiState.update { it.copy(choreRewardInputText = value) }
     fun selectAssigneeUser(user: AppUser?) = _uiState.update { it.copy(selectedAssigneeUser = user) }
     fun toggleMarkCompleted(value: Boolean) = _uiState.update { it.copy(markCompletedInput = value) }
@@ -237,14 +236,12 @@ class ChoresViewModel(
                     createdBy = state.currentUser.authUid,
                     assignedToUser = targetAssignee,
                     markCompleted = markCompleted,
-                    description = state.choreDescriptionInput,
                     needsApproval = needsApproval,
                 )
             }
             _uiState.update {
                 it.copy(
                     choreTitleInput = if (result.isSuccess) "" else it.choreTitleInput,
-                    choreDescriptionInput = if (result.isSuccess) "" else it.choreDescriptionInput,
                     choreRewardInputText = if (result.isSuccess) "" else it.choreRewardInputText,
                     selectedAssigneeUser = if (result.isSuccess) null else it.selectedAssigneeUser,
                     markCompletedInput = if (result.isSuccess) false else it.markCompletedInput,
@@ -435,8 +432,13 @@ class ChoresViewModel(
         }
     }
 
-    fun approveChore(chore: Chore) {
-        if (!_uiState.value.currentUser.isAdmin || _uiState.value.busyChoreActions[chore.id] != null) return
+    fun updateCurrentUser(user: AppUser) {
+        _uiState.update { it.copy(currentUser = user) }
+    }
+
+    fun approveChore(chore: Chore, admin: AppUser = _uiState.value.currentUser) {
+        val approver = if (admin.isAdmin) admin else _uiState.value.currentUser
+        if (!approver.isAdmin || _uiState.value.busyChoreActions[chore.id] != null) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -444,11 +446,15 @@ class ChoresViewModel(
                     message = null,
                 )
             }
-            val result = runCatching { familyRepository.approveChore(chore, _uiState.value.currentUser) }
+            val result = runCatching { familyRepository.approveChore(chore, approver) }
+            val error = result.exceptionOrNull()
+            if (error != null) {
+                Log.e("WorkHome", "Failed to approve chore ${chore.id}", error)
+            }
             _uiState.update {
                 it.copy(
                     busyChoreActions = it.busyChoreActions - chore.id,
-                    message = result.exceptionOrNull()?.localizedMessage
+                    message = error?.localizedMessage
                         ?: if (result.isSuccess) "Chore approved and minutes added!" else null,
                 )
             }

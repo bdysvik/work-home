@@ -54,6 +54,16 @@ service cloud.firestore {
         && getAfter(completionPath).data.userId == request.auth.uid;
     }
 
+    function isValidCustomChoreCreation() {
+      return isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.reward is int
+        && request.resource.data.reward > 0;
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSelf(userId)
@@ -73,7 +83,12 @@ service cloud.firestore {
 
     match /chores/{choreId} {
       allow read: if isSignedIn();
-      allow create, delete: if isAdmin();
+      allow create: if isAdmin() || isValidCustomChoreCreation();
+      allow delete: if isAdmin() || (
+        isSignedIn()
+        && resource.data.createdBy == request.auth.uid
+        && resource.data.awaitingApproval == true
+      );
       allow update: if isAdmin() || isValidSelfAssignment();
     }
 
@@ -90,11 +105,13 @@ service cloud.firestore {
 
     match /completions/{completionId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn()
+      allow create: if isAdmin() || (
+        isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.reward is int
         && request.resource.data.reward >= 0
-        && request.resource.data.choreId is string;
+        && request.resource.data.choreId is string
+      );
       allow update, delete: if isAdmin();
     }
   }
