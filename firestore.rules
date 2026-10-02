@@ -12,7 +12,10 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && currentUserDoc().data.role == 'admin';
+        && (
+          currentUserDoc().data.role == 'admin' ||
+          currentUserDoc().data.role == 'ADMIN'
+        );
     }
 
     function isSelf(userId) {
@@ -24,10 +27,10 @@ service cloud.firestore {
     }
 
     function sameProfileFields() {
-      return request.resource.data.name == resource.data.name
-        && request.resource.data.email == resource.data.email
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.authUid == resource.data.authUid;
+      return request.resource.data.get('name', '') == resource.data.get('name', '')
+        && request.resource.data.get('email', '') == resource.data.get('email', '')
+        && request.resource.data.get('role', '') == resource.data.get('role', '')
+        && request.resource.data.get('authUid', '') == resource.data.get('authUid', '');
     }
 
     function isValidSelfAssignment() {
@@ -46,11 +49,19 @@ service cloud.firestore {
       return isSelf(userId)
         && sameProfileFields()
         && completionId is string
-        && changedKeys.hasOnly(['currentRewardTotal', 'lastCompletionId'])
-        && !exists(completionPath)
-        && getAfter(completionPath).data.userId == request.auth.uid
-        && getAfter(completionPath).data.reward is int
-        && request.resource.data.currentRewardTotal == resource.data.currentRewardTotal + getAfter(completionPath).data.reward;
+        && changedKeys.hasOnly(['currentRewardTotal', 'lastCompletionId', 'lastCompletedAt'])
+        && existsAfter(completionPath)
+        && getAfter(completionPath).data.userId == request.auth.uid;
+    }
+
+    function isValidCustomChoreCreation() {
+      return isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.reward is int
+        && request.resource.data.reward > 0;
     }
 
     match /users/{userId} {
@@ -72,12 +83,18 @@ service cloud.firestore {
 
     match /chores/{choreId} {
       allow read: if isSignedIn();
-      allow create, delete: if isAdmin();
+      allow create: if isAdmin() || isValidCustomChoreCreation();
+      allow delete: if isAdmin() || (
+        isSignedIn()
+        && resource.data.createdBy == request.auth.uid
+        && resource.data.awaitingApproval == true
+      );
       allow update: if isAdmin() || isValidSelfAssignment();
     }
 
     match /choreTemplates/{templateId} {
-      allow read, create, update, delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     match /rewardHistory/{historyId} {
@@ -87,19 +104,14 @@ service cloud.firestore {
     }
 
     match /completions/{completionId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin()
-        || (
-          isSignedIn()
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.reward is int
-          && request.resource.data.reward >= 0
-          && request.resource.data.choreId is string
-          && exists(/databases/$(database)/documents/chores/$(request.resource.data.choreId))
-          && request.resource.data.reward == get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.reward
-          && get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.active == true
-          && get(/databases/$(database)/documents/chores/$(request.resource.data.choreId)).data.assignedTo == request.auth.uid
-        );
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.reward is int
+        && request.resource.data.reward >= 0
+        && request.resource.data.choreId is string
+      );
       allow update, delete: if isAdmin();
     }
   }

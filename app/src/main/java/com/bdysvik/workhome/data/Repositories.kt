@@ -2,6 +2,7 @@ package com.bdysvik.workhome.data
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -57,16 +58,37 @@ interface FamilyRepository {
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
     suspend fun removeUser(userId: String)
-    suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String)
-    suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long)
+    suspend fun addChoreTemplate(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        repeatIntervalDays: Int? = null,
+    )
+    suspend fun updateChoreTemplate(
+        templateId: String,
+        title: String,
+        reward: Long,
+        repeatIntervalDays: Int? = null,
+    )
     suspend fun deleteChoreTemplate(templateId: String)
     suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String)
-    suspend fun addChore(title: String, reward: Long, createdBy: String)
+    suspend fun generateScheduledChores(): Int
+    suspend fun addChore(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        assignedToUser: AppUser? = null,
+        markCompleted: Boolean = false,
+        description: String = "",
+        needsApproval: Boolean = false,
+    )
     suspend fun assignChore(choreId: String, user: AppUser)
     suspend fun resetChoreAssignment(choreId: String)
     suspend fun deleteChore(choreId: String)
     suspend fun completeChore(chore: Chore, user: AppUser)
+    suspend fun approveChore(chore: Chore, admin: AppUser)
     suspend fun resetRewards(admin: AppUser)
+    suspend fun setUserGoal(userId: String, goal: Long?)
 }
 
 class FirebaseFamilyRepository(
@@ -113,7 +135,7 @@ class FirebaseFamilyRepository(
 
     override fun observeCompletedChores(currentUser: AppUser): Flow<List<CompletedChore>> = collectionFlow(
         completions
-            .whereEqualTo("userId", currentUser.id)
+            .whereEqualTo("userId", currentUser.authUid)
             .orderBy("completedAt", Query.Direction.DESCENDING)
     ) { documents ->
         documents.mapNotNull { it.toCompletedChore() }
@@ -163,18 +185,42 @@ class FirebaseFamilyRepository(
         users.document(userId).delete().await()
     }
 
-    override suspend fun addChoreTemplate(title: String, reward: Long, createdBy: String) {
-        choreTemplates.add(choreTemplateData(title, reward, createdBy)).await()
+    override suspend fun addChoreTemplate(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        repeatIntervalDays: Int?,
+    ) {
+        val data = mutableMapOf<String, Any>(
+            "title" to title.trim(),
+            "reward" to reward,
+            "createdBy" to createdBy,
+            "updatedAt" to FieldValue.serverTimestamp(),
+        )
+        if (repeatIntervalDays != null && repeatIntervalDays > 0) {
+            data["repeatIntervalDays"] = repeatIntervalDays
+            data["lastSpawnedAt"] = FieldValue.serverTimestamp()
+        }
+        choreTemplates.add(data).await()
     }
 
-    override suspend fun updateChoreTemplate(templateId: String, title: String, reward: Long) {
-        choreTemplates.document(templateId).update(
-            mapOf(
-                "title" to title.trim(),
-                "reward" to reward,
-                "updatedAt" to FieldValue.serverTimestamp(),
-            ),
-        ).await()
+    override suspend fun updateChoreTemplate(
+        templateId: String,
+        title: String,
+        reward: Long,
+        repeatIntervalDays: Int?,
+    ) {
+        val updates = mutableMapOf<String, Any>(
+            "title" to title.trim(),
+            "reward" to reward,
+            "updatedAt" to FieldValue.serverTimestamp(),
+        )
+        if (repeatIntervalDays != null && repeatIntervalDays > 0) {
+            updates["repeatIntervalDays"] = repeatIntervalDays
+        } else {
+            updates["repeatIntervalDays"] = FieldValue.delete()
+        }
+        choreTemplates.document(templateId).update(updates).await()
     }
 
     override suspend fun deleteChoreTemplate(templateId: String) {
@@ -183,10 +229,137 @@ class FirebaseFamilyRepository(
 
     override suspend fun activateChoreTemplate(template: ChoreTemplate, createdBy: String) {
         addChore(title = template.title, reward = template.reward, createdBy = createdBy)
+        choreTemplates.document(template.id).update(
+            mapOf("lastSpawnedAt" to FieldValue.serverTimestamp()),
+        ).await()
     }
 
-    override suspend fun addChore(title: String, reward: Long, createdBy: String) {
-        chores.add(choreData(title, reward, createdBy)).await()
+    override suspend fun generateScheduledChores(): Int {
+        val templatesSnapshot = choreTemplates.get().await()
+        var spawnedCount = 0
+        val nowMillis = System.currentTimeMillis()
+
+        for (doc in templatesSnapshot.documents) {
+            val template = doc.toChoreTemplate() ?: continue
+            if (template.isDue(nowMillis)) {
+                val spawned = firestore.runTransaction { transaction ->
+                    val freshDoc = transaction.get(choreTemplates.document(template.id))
+                    val freshTemplate = freshDoc.toChoreTemplate() ?: return@runTransaction false
+                    if (!freshTemplate.isDue(System.currentTimeMillis())) {
+                        return@runTransaction false
+                    }
+
+                    val choreRef = chores.document()
+                    transaction.set(
+                        choreRef,
+                        mapOf(
+                            "title" to freshTemplate.title.trim(),
+                            "reward" to freshTemplate.reward,
+                            "createdBy" to freshTemplate.createdBy,
+                            "active" to true,
+                            "assignedTo" to "",
+                            "fromTemplateId" to freshTemplate.id,
+                        ),
+                    )
+
+                    transaction.update(
+                        choreTemplates.document(freshTemplate.id),
+                        mapOf("lastSpawnedAt" to FieldValue.serverTimestamp()),
+                    )
+                    true
+                }.await()
+
+                if (spawned) {
+                    spawnedCount++
+                }
+            }
+        }
+        return spawnedCount
+    }
+
+    override suspend fun addChore(
+        title: String,
+        reward: Long,
+        createdBy: String,
+        assignedToUser: AppUser?,
+        markCompleted: Boolean,
+        description: String,
+        needsApproval: Boolean,
+    ) {
+        if (markCompleted && needsApproval) {
+            val assignedUid = assignedToUser?.authUid?.ifEmpty { createdBy } ?: createdBy
+            chores.add(
+                mapOf(
+                    "title" to title.trim(),
+                    "description" to description.trim(),
+                    "reward" to reward,
+                    "createdBy" to createdBy,
+                    "active" to true,
+                    "assignedTo" to assignedUid,
+                    "awaitingApproval" to true,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                ),
+            ).await()
+        } else if (assignedToUser != null && markCompleted) {
+            val periodId = currentPeriodId()
+            val choreRef = chores.document()
+            val completionRef = completions.document("${periodId}_${assignedToUser.authUid}_${choreRef.id}")
+            val userRef = users.document(assignedToUser.id)
+
+            firestore.runTransaction { transaction ->
+                val userSnapshot = transaction.get(userRef)
+                val currentRewardTotal = userSnapshot.getLong("currentRewardTotal") ?: 0L
+
+                transaction.set(
+                    choreRef,
+                    mapOf(
+                        "title" to title.trim(),
+                        "description" to description.trim(),
+                        "reward" to reward,
+                        "createdBy" to createdBy,
+                        "active" to false,
+                        "assignedTo" to assignedToUser.authUid,
+                        "awaitingApproval" to false,
+                    ),
+                )
+                transaction.set(
+                    completionRef,
+                    mapOf(
+                        "userId" to assignedToUser.authUid,
+                        "choreId" to choreRef.id,
+                        "choreTitle" to title.trim(),
+                        "title" to title.trim(),
+                        "description" to description.trim(),
+                        "userName" to assignedToUser.name,
+                        "periodId" to periodId,
+                        "reward" to reward,
+                        "completedAt" to FieldValue.serverTimestamp(),
+                    ),
+                )
+                transaction.update(
+                    userRef,
+                    mapOf(
+                        "currentRewardTotal" to currentRewardTotal + reward,
+                        "lastCompletionId" to completionRef.id,
+                        "lastCompletedAt" to FieldValue.serverTimestamp(),
+                    ),
+                )
+                null
+            }.await()
+        } else {
+            chores.add(
+                mapOf(
+                    "title" to title.trim(),
+                    "description" to description.trim(),
+                    "reward" to reward,
+                    "createdBy" to createdBy,
+                    "active" to true,
+                    "assignedTo" to (assignedToUser?.authUid ?: ""),
+                    "awaitingApproval" to false,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                ),
+            ).await()
+        }
     }
 
     override suspend fun assignChore(choreId: String, user: AppUser) {
@@ -229,7 +402,7 @@ class FirebaseFamilyRepository(
 
     override suspend fun completeChore(chore: Chore, user: AppUser) {
         val periodId = currentPeriodId()
-        val completionRef = completions.document("${periodId}_${user.id}_${chore.id}")
+        val completionRef = completions.document("${periodId}_${user.authUid}_${chore.id}")
         val userRef = users.document(user.id)
         val choreRef = chores.document(chore.id)
 
@@ -254,9 +427,11 @@ class FirebaseFamilyRepository(
             transaction.set(
                 completionRef,
                 mapOf(
-                    "userId" to user.id,
+                    "userId" to user.authUid,
                     "choreId" to chore.id,
                     "choreTitle" to chore.title,
+                    "title" to chore.title,
+                    "userName" to user.name,
                     "periodId" to periodId,
                     "reward" to chore.reward,
                     "completedAt" to FieldValue.serverTimestamp(),
@@ -267,6 +442,100 @@ class FirebaseFamilyRepository(
                 mapOf(
                     "currentRewardTotal" to currentRewardTotal + chore.reward,
                     "lastCompletionId" to completionRef.id,
+                    "lastCompletedAt" to FieldValue.serverTimestamp(),
+                ),
+            )
+            null
+        }.await()
+    }
+
+    override suspend fun approveChore(chore: Chore, admin: AppUser) {
+        val periodId = currentPeriodId()
+        val choreRef = chores.document(chore.id)
+
+        // Pre-fetch chore to locate target user document reliably
+        val choreSnap = choreRef.get().await()
+        if (!choreSnap.exists()) {
+            throw IllegalStateException("Chore not found.")
+        }
+        val assignedTo = choreSnap.getString("assignedTo").orEmpty()
+            .ifEmpty { choreSnap.getString("createdBy").orEmpty() }
+        if (assignedTo.isEmpty()) {
+            throw IllegalStateException("No user assigned to this chore.")
+        }
+
+        val directUserRef = users.document(assignedTo)
+        val userDocRef = if (directUserRef.get().await().exists()) {
+            directUserRef
+        } else {
+            val querySnap = users.whereEqualTo("authUid", assignedTo).limit(1).get().await()
+            querySnap.documents.firstOrNull()?.reference ?: directUserRef
+        }
+
+        firestore.runTransaction { transaction ->
+            val choreSnapshot = transaction.get(choreRef)
+            val active = choreSnapshot.getBoolean("active") ?: false
+            val awaitingApproval = choreSnapshot.getBoolean("awaitingApproval") ?: false
+            if (!active || !awaitingApproval) {
+                throw IllegalStateException("This chore is no longer awaiting approval.")
+            }
+
+            val userSnapshot = transaction.get(userDocRef)
+            val currentRewardTotal = if (userSnapshot.exists()) {
+                userSnapshot.getLong("currentRewardTotal") ?: 0L
+            } else {
+                0L
+            }
+            val userName = if (userSnapshot.exists()) {
+                userSnapshot.getString("name").orEmpty()
+            } else {
+                choreSnapshot.getString("userName").orEmpty()
+            }
+
+            val completionRef = completions.document("${periodId}_${assignedTo}_${chore.id}")
+            transaction.set(
+                completionRef,
+                mapOf(
+                    "userId" to assignedTo,
+                    "choreId" to chore.id,
+                    "choreTitle" to chore.title,
+                    "title" to chore.title,
+                    "description" to chore.description,
+                    "userName" to userName,
+                    "periodId" to periodId,
+                    "reward" to chore.reward,
+                    "completedAt" to FieldValue.serverTimestamp(),
+                    "approvedBy" to admin.authUid,
+                ),
+            )
+            if (userSnapshot.exists()) {
+                transaction.update(
+                    userDocRef,
+                    mapOf(
+                        "currentRewardTotal" to currentRewardTotal + chore.reward,
+                        "lastCompletionId" to completionRef.id,
+                        "lastCompletedAt" to FieldValue.serverTimestamp(),
+                    ),
+                )
+            } else {
+                transaction.set(
+                    userDocRef,
+                    mapOf(
+                        "authUid" to assignedTo,
+                        "name" to userName,
+                        "currentRewardTotal" to chore.reward,
+                        "lastCompletionId" to completionRef.id,
+                        "lastCompletedAt" to FieldValue.serverTimestamp(),
+                    ),
+                )
+            }
+            transaction.update(
+                choreRef,
+                mapOf(
+                    "active" to false,
+                    "awaitingApproval" to false,
+                    "approvedAt" to FieldValue.serverTimestamp(),
+                    "approvedBy" to admin.authUid,
                 ),
             )
             null
@@ -305,6 +574,14 @@ class FirebaseFamilyRepository(
         }.await()
     }
 
+    override suspend fun setUserGoal(userId: String, goal: Long?) {
+        if (goal == null || goal <= 0) {
+            users.document(userId).update("rewardGoal", FieldValue.delete()).await()
+        } else {
+            users.document(userId).update("rewardGoal", goal).await()
+        }
+    }
+
     private fun <T> documentFlow(
         reference: com.google.firebase.firestore.DocumentReference,
         mapper: (com.google.firebase.firestore.DocumentSnapshot?) -> T,
@@ -337,6 +614,9 @@ class FirebaseFamilyRepository(
         val email = getString("email") ?: return null
         val name = getString("name") ?: return null
         val authUid = getString("authUid") ?: id
+        val lastCompletedAtMillis = getTimestamp("lastCompletedAt")?.toDate()?.time
+            ?: getLong("lastCompletedAt")
+        val rewardGoal = getLong("rewardGoal")
         return AppUser(
             id = id,
             name = name,
@@ -344,6 +624,8 @@ class FirebaseFamilyRepository(
             role = UserRole.from(getString("role")),
             authUid = authUid,
             currentRewardTotal = getLong("currentRewardTotal") ?: 0L,
+            lastCompletedAtMillis = lastCompletedAtMillis,
+            rewardGoal = rewardGoal,
         )
     }
 
@@ -360,11 +642,16 @@ class FirebaseFamilyRepository(
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toChoreTemplate(): ChoreTemplate? {
         val title = choreTitle(getString("title"), null) ?: return null
+        val repeatIntervalDays = getLong("repeatIntervalDays")?.toInt()
+        val lastSpawnedAtMillis = getTimestamp("lastSpawnedAt")?.toDate()?.time
+            ?: getLong("lastSpawnedAt")
         return ChoreTemplate(
             id = id,
             title = title,
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
+            repeatIntervalDays = repeatIntervalDays,
+            lastSpawnedAtMillis = lastSpawnedAtMillis,
         )
     }
 
@@ -373,24 +660,36 @@ class FirebaseFamilyRepository(
         return Chore(
             id = id,
             title = title,
+            description = getString("description").orEmpty(),
             reward = getLong("reward") ?: 0L,
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
             assignedToUserId = getString("assignedTo").orEmpty(),
+            awaitingApproval = getBoolean("awaitingApproval") ?: false,
         )
     }
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.toCompletedChore(): CompletedChore? {
+    private fun DocumentSnapshot.toCompletedChore(): CompletedChore? {
         val choreId = getString("choreId") ?: return null
-        val title = getString("choreTitle")?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?: "Completed chore"
+        val userId = getString("userId") ?: return null
+        val title = choreTitle(
+            getString("choreTitle") ?: getString("title"),
+            getString("description"),
+        ) ?: "Completed chore"
+        val description = getString("description").orEmpty()
+        val reward = getLong("reward") ?: 0L
+        val userName = getString("userName").orEmpty()
+        val completedAtMillis = getTimestamp("completedAt")?.toDate()?.time
+            ?: getLong("completedAt")
         return CompletedChore(
             id = id,
             choreId = choreId,
             title = title,
-            reward = getLong("reward") ?: 0L,
-            completedAtEpochMillis = getTimestamp("completedAt")?.toDate()?.time,
+            description = description,
+            reward = reward,
+            userId = userId,
+            userName = userName,
+            completedAtMillis = completedAtMillis,
         )
     }
 

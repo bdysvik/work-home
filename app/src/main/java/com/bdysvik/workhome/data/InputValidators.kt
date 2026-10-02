@@ -26,7 +26,7 @@ object InputValidators {
             return "Enter a chore title."
         }
         if (parseReward(rewardText) == null) {
-            return "Reward must be a whole number greater than zero."
+            return "Minutes must be a whole number greater than zero."
         }
         return null
     }

@@ -1,5 +1,6 @@
 package com.bdysvik.workhome.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bdysvik.workhome.data.AppUser
@@ -127,9 +128,16 @@ data class ChoresUiState(
     val choreTemplates: List<ChoreTemplate> = emptyList(),
     val chores: List<Chore> = emptyList(),
     val completedChores: List<CompletedChore> = emptyList(),
+    val usersList: List<AppUser> = emptyList(),
     val usersByAuthUid: Map<String, String> = emptyMap(),
+    val choreTitleInput: String = "",
+    val choreRewardInputText: String = "",
+    val selectedAssigneeUser: AppUser? = null,
+    val markCompletedInput: Boolean = false,
+    val createChoreSubmitting: Boolean = false,
     val templateTitle: String = "",
     val templateRewardText: String = "",
+    val templateRepeatIntervalDays: Int? = null,
     val editingTemplateId: String? = null,
     val templateFormSubmitting: Boolean = false,
     val busyTemplateActions: Map<String, TemplateRowAction> = emptyMap(),
@@ -145,6 +153,7 @@ enum class TemplateRowAction {
 enum class ChoreRowAction {
     ASSIGN,
     COMPLETE,
+    APPROVE,
     RESET,
     DELETE,
 }
@@ -157,6 +166,9 @@ class ChoresViewModel(
     val uiState: StateFlow<ChoresUiState> = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            runCatching { familyRepository.generateScheduledChores() }
+        }
         if (currentUser.isAdmin) {
             viewModelScope.launch {
                 familyRepository.observeChoreTemplates()
@@ -176,8 +188,8 @@ class ChoresViewModel(
         viewModelScope.launch {
             familyRepository.observeCompletedChores(currentUser)
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
-                .collect { completedChores ->
-                    _uiState.update { it.copy(completedChores = completedChores) }
+                .collect { completed ->
+                    _uiState.update { it.copy(completedChores = completed) }
                 }
         }
         viewModelScope.launch {
@@ -185,14 +197,75 @@ class ChoresViewModel(
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
                 .collect { users ->
                     _uiState.update {
-                        it.copy(usersByAuthUid = users.associate { user -> user.authUid to user.name })
+                        it.copy(
+                            usersList = users,
+                            usersByAuthUid = users.associate { user -> user.authUid to user.name },
+                        )
                     }
                 }
         }
     }
 
+    fun updateChoreTitleInput(value: String) = _uiState.update { it.copy(choreTitleInput = value) }
+    fun updateChoreRewardInput(value: String) = _uiState.update { it.copy(choreRewardInputText = value) }
+    fun selectAssigneeUser(user: AppUser?) = _uiState.update { it.copy(selectedAssigneeUser = user) }
+    fun toggleMarkCompleted(value: Boolean) = _uiState.update { it.copy(markCompletedInput = value) }
+
+    fun createChore() {
+        val state = _uiState.value
+        if (state.createChoreSubmitting) return
+        val error = InputValidators.validateChore(state.choreTitleInput, state.choreRewardInputText)
+        if (error != null) {
+            _uiState.update { it.copy(message = error) }
+            return
+        }
+        val reward = InputValidators.parseReward(state.choreRewardInputText) ?: return
+
+        val targetAssignee = state.selectedAssigneeUser
+            ?: if (!state.currentUser.isAdmin && state.markCompletedInput) state.currentUser else null
+
+        val needsApproval = !state.currentUser.isAdmin && state.markCompletedInput
+        val markCompleted = state.markCompletedInput && (state.currentUser.isAdmin || targetAssignee != null)
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(createChoreSubmitting = true, message = null) }
+            val result = runCatching {
+                familyRepository.addChore(
+                    title = state.choreTitleInput,
+                    reward = reward,
+                    createdBy = state.currentUser.authUid,
+                    assignedToUser = targetAssignee,
+                    markCompleted = markCompleted,
+                    needsApproval = needsApproval,
+                )
+            }
+            _uiState.update {
+                it.copy(
+                    choreTitleInput = if (result.isSuccess) "" else it.choreTitleInput,
+                    choreRewardInputText = if (result.isSuccess) "" else it.choreRewardInputText,
+                    selectedAssigneeUser = if (result.isSuccess) null else it.selectedAssigneeUser,
+                    markCompletedInput = if (result.isSuccess) false else it.markCompletedInput,
+                    createChoreSubmitting = false,
+                    message = result.exceptionOrNull()?.localizedMessage
+                        ?: if (result.isSuccess) {
+                            if (needsApproval) {
+                                "Custom chore submitted and awaiting approval!"
+                            } else if (markCompleted) {
+                                "Chore created and marked completed!"
+                            } else if (targetAssignee != null) {
+                                "Chore created and assigned!"
+                            } else {
+                                "Chore created!"
+                            }
+                        } else null,
+                )
+            }
+        }
+    }
+
     fun updateTemplateTitle(value: String) = _uiState.update { it.copy(templateTitle = value) }
     fun updateTemplateReward(value: String) = _uiState.update { it.copy(templateRewardText = value) }
+    fun updateTemplateRepeatInterval(days: Int?) = _uiState.update { it.copy(templateRepeatIntervalDays = days) }
     fun clearMessage() = _uiState.update { it.copy(message = null) }
     fun cancelTemplateEdit() {
         if (
@@ -200,7 +273,14 @@ class ChoresViewModel(
             _uiState.value.templateFormSubmitting ||
             _uiState.value.busyTemplateActions.isNotEmpty()
         ) return
-        _uiState.update { it.copy(templateTitle = "", templateRewardText = "", editingTemplateId = null) }
+        _uiState.update {
+            it.copy(
+                templateTitle = "",
+                templateRewardText = "",
+                templateRepeatIntervalDays = null,
+                editingTemplateId = null,
+            )
+        }
     }
 
     fun editTemplate(template: ChoreTemplate) {
@@ -213,6 +293,7 @@ class ChoresViewModel(
             it.copy(
                 templateTitle = template.title,
                 templateRewardText = template.reward.toString(),
+                templateRepeatIntervalDays = template.repeatIntervalDays,
                 editingTemplateId = template.id,
             )
         }
@@ -232,15 +313,26 @@ class ChoresViewModel(
             _uiState.update { it.copy(templateFormSubmitting = true, message = null) }
             val result = runCatching {
                 if (state.editingTemplateId == null) {
-                    familyRepository.addChoreTemplate(state.templateTitle, reward, state.currentUser.authUid)
+                    familyRepository.addChoreTemplate(
+                        state.templateTitle,
+                        reward,
+                        state.currentUser.authUid,
+                        state.templateRepeatIntervalDays,
+                    )
                 } else {
-                    familyRepository.updateChoreTemplate(state.editingTemplateId, state.templateTitle, reward)
+                    familyRepository.updateChoreTemplate(
+                        state.editingTemplateId,
+                        state.templateTitle,
+                        reward,
+                        state.templateRepeatIntervalDays,
+                    )
                 }
             }
             _uiState.update {
                 it.copy(
                     templateTitle = if (result.isSuccess) "" else it.templateTitle,
                     templateRewardText = if (result.isSuccess) "" else it.templateRewardText,
+                    templateRepeatIntervalDays = if (result.isSuccess) null else it.templateRepeatIntervalDays,
                     editingTemplateId = if (result.isSuccess) null else it.editingTemplateId,
                     templateFormSubmitting = false,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) {
@@ -334,7 +426,36 @@ class ChoresViewModel(
             _uiState.update {
                 it.copy(
                     busyChoreActions = it.busyChoreActions - chore.id,
-                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Reward added." else null,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Minutes added." else null,
+                )
+            }
+        }
+    }
+
+    fun updateCurrentUser(user: AppUser) {
+        _uiState.update { it.copy(currentUser = user) }
+    }
+
+    fun approveChore(chore: Chore, admin: AppUser = _uiState.value.currentUser) {
+        val approver = if (admin.isAdmin) admin else _uiState.value.currentUser
+        if (!approver.isAdmin || _uiState.value.busyChoreActions[chore.id] != null) return
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions + (chore.id to ChoreRowAction.APPROVE),
+                    message = null,
+                )
+            }
+            val result = runCatching { familyRepository.approveChore(chore, approver) }
+            val error = result.exceptionOrNull()
+            if (error != null) {
+                Log.e("WorkHome", "Failed to approve chore ${chore.id}", error)
+            }
+            _uiState.update {
+                it.copy(
+                    busyChoreActions = it.busyChoreActions - chore.id,
+                    message = error?.localizedMessage
+                        ?: if (result.isSuccess) "Chore approved and minutes added!" else null,
                 )
             }
         }
@@ -465,6 +586,20 @@ class UsersViewModel(
             }
         }
     }
+
+    fun setUserGoal(user: AppUser, goal: Long?) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(submitting = true, message = null) }
+            val result = runCatching { familyRepository.setUserGoal(user.id, goal) }
+            _uiState.update {
+                it.copy(
+                    submitting = false,
+                    message = result.exceptionOrNull()?.localizedMessage
+                        ?: if (result.isSuccess) "Goal updated for ${user.name}." else null,
+                )
+            }
+        }
+    }
 }
 
 data class RewardsUiState(
@@ -483,9 +618,11 @@ class RewardsViewModel(
 
     init {
         viewModelScope.launch {
-            familyRepository.observeUsers().collect { users ->
-                _uiState.update { it.copy(users = users.sortedByDescending(AppUser::currentRewardTotal)) }
-            }
+            familyRepository.observeUsers()
+                .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
+                .collect { users ->
+                    _uiState.update { it.copy(users = users.sortedByDescending(AppUser::currentRewardTotal)) }
+                }
         }
     }
 
@@ -498,7 +635,19 @@ class RewardsViewModel(
             _uiState.update {
                 it.copy(
                     resetting = false,
-                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Rewards reset and archived." else null,
+                    message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Minutes reset and archived." else null,
+                )
+            }
+        }
+    }
+
+    fun setUserGoal(user: AppUser, goal: Long?) {
+        viewModelScope.launch {
+            val result = runCatching { familyRepository.setUserGoal(user.id, goal) }
+            _uiState.update {
+                it.copy(
+                    message = result.exceptionOrNull()?.localizedMessage
+                        ?: if (result.isSuccess) "Goal updated for ${user.name}." else null,
                 )
             }
         }
