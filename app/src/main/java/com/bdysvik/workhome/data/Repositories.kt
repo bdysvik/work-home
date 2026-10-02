@@ -53,7 +53,7 @@ interface FamilyRepository {
     fun observePendingUsers(): Flow<List<PendingUser>>
     fun observeChoreTemplates(): Flow<List<ChoreTemplate>>
     fun observeChores(currentUser: AppUser): Flow<List<Chore>>
-    fun observeCompletedChores(): Flow<List<CompletedChore>>
+    fun observeCompletedChores(currentUser: AppUser): Flow<List<CompletedChore>>
     suspend fun bootstrapUserProfile(userId: String, email: String?)
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
@@ -133,8 +133,10 @@ class FirebaseFamilyRepository(
             .sortedBy { it.title }
     }
 
-    override fun observeCompletedChores(): Flow<List<CompletedChore>> = collectionFlow(
-        completions.orderBy("completedAt", Query.Direction.DESCENDING)
+    override fun observeCompletedChores(currentUser: AppUser): Flow<List<CompletedChore>> = collectionFlow(
+        completions
+            .whereEqualTo("userId", currentUser.authUid)
+            .orderBy("completedAt", Query.Direction.DESCENDING)
     ) { documents ->
         documents.mapNotNull { it.toCompletedChore() }
     }

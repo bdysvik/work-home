@@ -123,8 +123,13 @@ import com.bdysvik.workhome.viewmodel.TemplateRowAction
 import com.bdysvik.workhome.viewmodel.UsersUiState
 import com.bdysvik.workhome.viewmodel.UsersViewModel
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 private object Routes {
@@ -546,6 +551,10 @@ private fun ChoresScreen(
         }
     }
     val daysLeftInMonth = daysLeftInCurrentMonth(currentDate)
+    val completedGroups = state.completedChores
+        .groupBy { completion -> completion.completedAtMillis?.let(::yearMonthFromEpochMillis) }
+        .entries
+        .sortedByDescending { it.key }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -1203,30 +1212,61 @@ private fun ChoresScreen(
             }
 
             if (state.completedChores.isNotEmpty()) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = WorkHomeShapes.CardShape,
-                        color = WorkHomeColors.CardBackground,
-                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
-                        shadowElevation = 2.dp,
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .background(WorkHomeColors.CardGradient)
-                                .fillMaxWidth()
+                completedGroups.forEach { (month, chores) ->
+                    item(key = "month-${month?.toString() ?: "unknown"}") {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = WorkHomeShapes.CardShape,
+                            color = WorkHomeColors.CardBackground,
+                            border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                            shadowElevation = 2.dp,
                         ) {
-                            state.completedChores.forEachIndexed { index, completed ->
-                                if (index > 0) {
-                                    HorizontalDivider(
-                                        color = WorkHomeColors.CardBorderBlue.copy(alpha = 0.5f),
+                            Column(
+                                modifier = Modifier
+                                    .background(WorkHomeColors.CardGradient)
+                                    .fillMaxWidth()
+                                    .padding(WorkHomeDimens.CardPadding),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = monthLabel(month),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WorkHomeColors.PrimaryText,
+                                )
+                                Text(
+                                    text = "Total reward: ${chores.sumOf { it.reward }}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = WorkHomeColors.SecondaryText,
+                                )
+                            }
+                        }
+                    }
+                    item(key = "month-rows-${month?.toString() ?: "unknown"}") {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = WorkHomeShapes.CardShape,
+                            color = WorkHomeColors.CardBackground,
+                            border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                            shadowElevation = 2.dp,
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .background(WorkHomeColors.CardGradient)
+                                    .fillMaxWidth()
+                            ) {
+                                chores.forEachIndexed { index, completed ->
+                                    if (index > 0) {
+                                        HorizontalDivider(
+                                            color = WorkHomeColors.CardBorderBlue.copy(alpha = 0.5f),
+                                        )
+                                    }
+                                    CompletedChoreRow(
+                                        completed = completed,
+                                        currentUser = currentUser,
+                                        assigneeName = completed.userName.ifBlank { state.usersByAuthUid[completed.userId] },
                                     )
                                 }
-                                CompletedChoreRow(
-                                    completed = completed,
-                                    currentUser = currentUser,
-                                    assigneeName = completed.userName.ifBlank { state.usersByAuthUid[completed.userId] },
-                                )
                             }
                         }
                     }
@@ -1316,6 +1356,21 @@ private fun ChoresScreen(
 
 internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
 
+private val completionMonthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+private val completionTimestampFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a", Locale.getDefault())
+
+private fun yearMonthFromEpochMillis(epochMillis: Long): YearMonth =
+    YearMonth.from(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))
+
+private fun monthLabel(month: YearMonth?): String = month?.format(completionMonthFormatter) ?: "Unknown month"
+
+private fun completionTimestampLabel(epochMillis: Long?): String =
+    epochMillis?.let {
+        Instant.ofEpochMilli(it)
+            .atZone(ZoneId.systemDefault())
+            .format(completionTimestampFormatter)
+    } ?: "Unknown completion time"
+
 private fun choreIconForTitle(title: String): ImageVector {
     val lower = title.lowercase()
     return when {
@@ -1357,7 +1412,7 @@ private fun CompletedChoreRow(
             )
             val displayName = assigneeName?.ifBlank { null }
             val subtitle = buildString {
-                append(completed.formattedDate())
+                append(completionTimestampLabel(completed.completedAtMillis))
                 if (displayName != null) {
                     append(" • ")
                     append(if (completed.userId == currentUser.authUid) "you" else displayName)

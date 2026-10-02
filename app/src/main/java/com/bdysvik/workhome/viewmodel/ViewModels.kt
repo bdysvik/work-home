@@ -186,7 +186,7 @@ class ChoresViewModel(
                 }
         }
         viewModelScope.launch {
-            familyRepository.observeCompletedChores()
+            familyRepository.observeCompletedChores(currentUser)
                 .catch { e -> _uiState.update { it.copy(message = e.localizedMessage) } }
                 .collect { completed ->
                     _uiState.update { it.copy(completedChores = completed) }
