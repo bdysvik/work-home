@@ -74,6 +74,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -108,6 +109,11 @@ import com.bdysvik.workhome.data.ChoreTemplate
 import com.bdysvik.workhome.data.CompletedChore
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
+import com.bdysvik.workhome.localization.AppLanguage
+import com.bdysvik.workhome.localization.LanguagePreference
+import com.bdysvik.workhome.localization.LocalAppLanguage
+import com.bdysvik.workhome.localization.LocalAppStrings
+import com.bdysvik.workhome.localization.getStrings
 import com.bdysvik.workhome.ui.theme.WorkHomeColors
 import com.bdysvik.workhome.ui.theme.WorkHomeDimens
 import com.bdysvik.workhome.ui.theme.WorkHomeShapes
@@ -144,41 +150,59 @@ fun WorkHomeApp(
     appContainer: AppContainer?,
     firebaseConfigured: Boolean,
 ) {
-    if (!firebaseConfigured || appContainer == null) {
-        SetupRequiredScreen()
-        return
+    val context = LocalContext.current
+    var currentLanguage by remember {
+        mutableStateOf(LanguagePreference.getLanguage(context))
+    }
+    val onLanguageSelected: (AppLanguage) -> Unit = { newLang ->
+        currentLanguage = newLang
+        LanguagePreference.setLanguage(context, newLang)
     }
 
-    val sessionViewModel: SessionViewModel = viewModel(factory = simpleFactory {
-        SessionViewModel(appContainer.authRepository, appContainer.familyRepository)
-    })
-    val sessionState by sessionViewModel.uiState.collectAsStateWithLifecycle()
+    CompositionLocalProvider(
+        LocalAppLanguage provides currentLanguage,
+        LocalAppStrings provides getStrings(currentLanguage),
+    ) {
+        if (!firebaseConfigured || appContainer == null) {
+            SetupRequiredScreen()
+            return@CompositionLocalProvider
+        }
 
-    val profile = sessionState.profile
-    when {
-        sessionState.isLoading -> LoadingScreen()
-        sessionState.user == null -> {
-            val loginViewModel: LoginViewModel = viewModel(factory = simpleFactory {
-                LoginViewModel(appContainer.authRepository)
-            })
-            val loginState by loginViewModel.uiState.collectAsStateWithLifecycle()
-            LoginScreen(
-                state = loginState,
-                onEmailChange = loginViewModel::updateEmail,
-                onPasswordChange = loginViewModel::updatePassword,
-                onModeToggle = loginViewModel::toggleMode,
-                onSubmit = loginViewModel::submit,
+        val sessionViewModel: SessionViewModel = viewModel(factory = simpleFactory {
+            SessionViewModel(appContainer.authRepository, appContainer.familyRepository)
+        })
+        val sessionState by sessionViewModel.uiState.collectAsStateWithLifecycle()
+
+        val profile = sessionState.profile
+        when {
+            sessionState.isLoading -> LoadingScreen()
+            sessionState.user == null -> {
+                val loginViewModel: LoginViewModel = viewModel(factory = simpleFactory {
+                    LoginViewModel(appContainer.authRepository)
+                })
+                val loginState by loginViewModel.uiState.collectAsStateWithLifecycle()
+                LoginScreen(
+                    state = loginState,
+                    currentLanguage = currentLanguage,
+                    onLanguageSelected = onLanguageSelected,
+                    onEmailChange = loginViewModel::updateEmail,
+                    onPasswordChange = loginViewModel::updatePassword,
+                    onModeToggle = loginViewModel::toggleMode,
+                    onSubmit = loginViewModel::submit,
+                )
+            }
+            profile == null -> MissingProfileScreen(
+                errorMessage = sessionState.bootstrapError,
+                onSignOut = sessionViewModel::signOut,
+            )
+            else -> HomeScaffold(
+                currentUser = profile,
+                appContainer = appContainer,
+                currentLanguage = currentLanguage,
+                onLanguageSelected = onLanguageSelected,
+                onSignOut = sessionViewModel::signOut,
             )
         }
-        profile == null -> MissingProfileScreen(
-            errorMessage = sessionState.bootstrapError,
-            onSignOut = sessionViewModel::signOut,
-        )
-        else -> HomeScaffold(
-            currentUser = profile,
-            appContainer = appContainer,
-            onSignOut = sessionViewModel::signOut,
-        )
     }
 }
 
@@ -187,6 +211,8 @@ fun WorkHomeApp(
 private fun HomeScaffold(
     currentUser: AppUser,
     appContainer: AppContainer,
+    currentLanguage: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
     onSignOut: () -> Unit,
 ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -206,14 +232,15 @@ private fun HomeScaffold(
         }
     }
 
+    val strings = LocalAppStrings.current
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: Routes.Chores
     val navItems = buildList {
-        add(Routes.Chores to "Chores")
-        add(Routes.CreateChore to "Add chore")
-        add(Routes.Rewards to "Minutes")
-        if (currentUser.isAdmin) add(Routes.Users to "Users")
+        add(Routes.Chores to strings.navChores)
+        add(Routes.CreateChore to strings.navAddChore)
+        add(Routes.Rewards to strings.navMinutes)
+        if (currentUser.isAdmin) add(Routes.Users to strings.navUsers)
     }
 
     Scaffold(
@@ -223,16 +250,20 @@ private fun HomeScaffold(
             TopAppBar(
                 title = {
                     Text(
-                        text = navItems.firstOrNull { it.first == currentRoute }?.second ?: "WorkHome",
+                        text = navItems.firstOrNull { it.first == currentRoute }?.second ?: strings.appName,
                         fontWeight = FontWeight.Bold,
                         color = WorkHomeColors.PrimaryText,
                     )
                 },
                 actions = {
+                    LanguageSelector(
+                        currentLanguage = currentLanguage,
+                        onLanguageSelected = onLanguageSelected,
+                    )
                     IconButton(onClick = onSignOut) {
                         Icon(
                             imageVector = Icons.Filled.AccountCircle,
-                            contentDescription = "Sign out",
+                            contentDescription = strings.signOut,
                             tint = WorkHomeColors.SecondaryText,
                         )
                     }
@@ -406,9 +437,10 @@ private fun LoadingScreen() {
 
 @Composable
 private fun SetupRequiredScreen() {
+    val strings = LocalAppStrings.current
     CenteredMessage(
-        title = "Firebase setup required",
-        body = "Copy your Firebase app config into app/google-services.json, then rebuild the app.",
+        title = strings.setupRequiredTitle,
+        body = strings.setupRequiredBody,
     )
 }
 
@@ -417,13 +449,14 @@ private fun MissingProfileScreen(
     errorMessage: String?,
     onSignOut: () -> Unit,
 ) {
+    val strings = LocalAppStrings.current
     CenteredMessage(
-        title = "Profile not found",
+        title = strings.profileNotFoundTitle,
         body = errorMessage
-            ?: "Your Firebase account is signed in, but no matching Firestore family profile exists yet. Ask an admin to add an invite for your email, or manually create the first admin profile in Firestore.",
+            ?: strings.profileNotFoundDefaultBody,
         action = {
             Button(onClick = onSignOut) {
-                Text("Sign out")
+                Text(strings.signOut)
             }
         },
     )
@@ -461,39 +494,52 @@ private fun CenteredMessage(
 @Composable
 private fun LoginScreen(
     state: LoginUiState,
+    currentLanguage: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onModeToggle: () -> Unit,
     onSubmit: () -> Unit,
 ) {
+    val strings = LocalAppStrings.current
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = strings.appName,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    LanguageSelector(
+                        currentLanguage = currentLanguage,
+                        onLanguageSelected = onLanguageSelected,
+                    )
+                }
                 Text(
-                    text = "WorkHome",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = if (state.createAccount) "Create invited account" else "Sign in",
+                    text = if (state.createAccount) strings.createInvitedAccount else strings.signIn,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 OutlinedTextField(
                     value = state.email,
                     onValueChange = onEmailChange,
-                    label = { Text("Email") },
+                    label = { Text(strings.email) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = onPasswordChange,
-                    label = { Text("Password") },
+                    label = { Text(strings.password) },
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -507,10 +553,10 @@ private fun LoginScreen(
                     )
                 }
                 Button(onClick = onSubmit, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (state.loading) "Working..." else if (state.createAccount) "Create invited account" else "Sign in")
+                    Text(if (state.loading) strings.working else if (state.createAccount) strings.createInvitedAccount else strings.signIn)
                 }
                 TextButton(onClick = onModeToggle, enabled = !state.loading) {
-                    Text(if (state.createAccount) "Already have an account? Sign in" else "Need to claim an invite? Create account")
+                    Text(if (state.createAccount) strings.alreadyHaveAccount else strings.needToClaimInvite)
                 }
             }
         }
@@ -536,6 +582,7 @@ private fun ChoresScreen(
     onDeleteChore: (Chore) -> Unit,
     onClearMessage: () -> Unit,
 ) {
+    val strings = LocalAppStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
     var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
@@ -632,7 +679,7 @@ private fun ChoresScreen(
                                         )
                                     }
                                     Text(
-                                        text = "Total minutes",
+                                        text = strings.totalMinutes,
                                         style = MaterialTheme.typography.labelMedium,
                                         color = WorkHomeColors.SecondaryText,
                                     )
@@ -686,7 +733,7 @@ private fun ChoresScreen(
                                         )
                                     }
                                     Text(
-                                        text = "Days left",
+                                        text = strings.daysLeft,
                                         style = MaterialTheme.typography.labelMedium,
                                         color = WorkHomeColors.SecondaryText,
                                     )
@@ -712,7 +759,7 @@ private fun ChoresScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Active chores",
+                        text = strings.activeChores,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = WorkHomeColors.PrimaryText,
@@ -1196,7 +1243,7 @@ private fun ChoresScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Completed chores",
+                        text = strings.completedChores,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = WorkHomeColors.PrimaryText,
@@ -1291,7 +1338,7 @@ private fun ChoresScreen(
                     onClick = { onDeleteChore(chore) },
                     enabled = !choreDeleteBusy,
                 ) {
-                    Text("Delete", color = Color(0xFFFF6E6E))
+                    Text(strings.delete, color = Color(0xFFFF6E6E))
                 }
             },
             dismissButton = {
@@ -1299,7 +1346,7 @@ private fun ChoresScreen(
                     onClick = { choreToDelete = null },
                     enabled = !choreDeleteBusy,
                 ) {
-                    Text("Cancel", color = WorkHomeColors.SecondaryText)
+                    Text(strings.cancel, color = WorkHomeColors.SecondaryText)
                 }
             },
             title = { Text("Delete chore?") },
@@ -1330,7 +1377,7 @@ private fun ChoresScreen(
                     onClick = { onDeleteTemplate(template) },
                     enabled = !templateDeleteBusy,
                 ) {
-                    Text("Delete", color = Color(0xFFFF6E6E))
+                    Text(strings.delete, color = Color(0xFFFF6E6E))
                 }
             },
             dismissButton = {
@@ -1338,7 +1385,7 @@ private fun ChoresScreen(
                     onClick = { templateToDelete = null },
                     enabled = !templateDeleteBusy,
                 ) {
-                    Text("Cancel", color = WorkHomeColors.SecondaryText)
+                    Text(strings.cancel, color = WorkHomeColors.SecondaryText)
                 }
             },
             title = { Text("Delete template?") },
@@ -1555,6 +1602,7 @@ private fun CreateChoreScreen(
     onClearMessage: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalAppStrings.current
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -1591,7 +1639,7 @@ private fun CreateChoreScreen(
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = "Create custom chore",
+                                text = strings.createChoreTitle,
                                 fontWeight = FontWeight.Bold,
                                 color = WorkHomeColors.PrimaryText,
                                 style = MaterialTheme.typography.titleLarge,
@@ -1599,7 +1647,7 @@ private fun CreateChoreScreen(
                             OutlinedTextField(
                                 value = state.choreTitleInput,
                                 onValueChange = onChoreTitleChange,
-                                label = { Text("Title") },
+                                label = { Text(strings.choreTitleLabel) },
                                 placeholder = { Text("e.g. Wash dishes") },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !state.createChoreSubmitting,
@@ -1616,7 +1664,7 @@ private fun CreateChoreScreen(
                             OutlinedTextField(
                                 value = state.choreRewardInputText,
                                 onValueChange = onChoreRewardChange,
-                                label = { Text("Minutes") },
+                                label = { Text(strings.rewardMinutes) },
                                 placeholder = { Text("e.g. 15") },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -1644,7 +1692,7 @@ private fun CreateChoreScreen(
                                     FilterChip(
                                         selected = state.selectedAssigneeUser == null,
                                         onClick = { onSelectAssignee(null) },
-                                        label = { Text("Unassigned") },
+                                        label = { Text(strings.unassigned) },
                                         enabled = !state.createChoreSubmitting,
                                         colors = FilterChipDefaults.filterChipColors(
                                             selectedContainerColor = Color(0xFF142B50),
@@ -1723,7 +1771,7 @@ private fun CreateChoreScreen(
                                 ),
                             ) {
                                 Text(
-                                    text = if (state.createChoreSubmitting) "Creating..." else "Create chore",
+                                    text = if (state.createChoreSubmitting) strings.creating else strings.createChoreButton,
                                     fontWeight = FontWeight.Bold,
                                 )
                             }
@@ -1966,17 +2014,19 @@ private fun ConfirmDialog(
     body: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    confirmText: String = LocalAppStrings.current.confirm,
+    cancelText: String = LocalAppStrings.current.cancel,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Confirm")
+                Text(confirmText)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(cancelText)
             }
         },
         title = { Text(title) },
@@ -1990,6 +2040,7 @@ private fun SetGoalDialog(
     onConfirm: (Long?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val strings = LocalAppStrings.current
     var goalText by remember { mutableStateOf(user.rewardGoal?.toString().orEmpty()) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
@@ -2005,7 +2056,7 @@ private fun SetGoalDialog(
                         goalText = input.filter { it.isDigit() }
                         errorText = null
                     },
-                    label = { Text("Minutes goal") },
+                    label = { Text(strings.rewardMinutes) },
                     placeholder = { Text("e.g. 500") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = errorText != null,
@@ -2032,12 +2083,12 @@ private fun SetGoalDialog(
                     }
                 },
             ) {
-                Text("Save")
+                Text(strings.save)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(strings.cancel)
             }
         },
     )
