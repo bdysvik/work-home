@@ -1,7 +1,5 @@
 package com.bdysvik.workhome.localization
 
-import androidx.compose.runtime.compositionLocalOf
-
 interface AppStrings {
     // App info & common
     val appName: String
@@ -10,6 +8,7 @@ interface AppStrings {
     val english: String
     val norwegian: String
     val cancel: String
+    val confirm: String
     val save: String
     val delete: String
     val edit: String
@@ -86,6 +85,10 @@ interface AppStrings {
     val roleAdmin: String
     val roleMember: String
     val sendInvite: String
+
+    companion object {
+        fun forLanguage(language: AppLanguage): AppStrings = getStrings(language)
+    }
 }
 
 object EnglishStrings : AppStrings {
@@ -95,6 +98,7 @@ object EnglishStrings : AppStrings {
     override val english = "English"
     override val norwegian = "Norwegian"
     override val cancel = "Cancel"
+    override val confirm = "Confirm"
     override val save = "Save"
     override val delete = "Delete"
     override val edit = "Edit"
@@ -173,6 +177,7 @@ object NorwegianStrings : AppStrings {
     override val english = "English"
     override val norwegian = "Norsk"
     override val cancel = "Avbryt"
+    override val confirm = "Bekreft"
     override val save = "Lagre"
     override val delete = "Slett"
     override val edit = "Rediger"
@@ -248,6 +253,3 @@ fun getStrings(language: AppLanguage): AppStrings = when (language) {
     AppLanguage.ENGLISH -> EnglishStrings
     AppLanguage.NORWEGIAN -> NorwegianStrings
 }
-
-val LocalAppLanguage = compositionLocalOf { AppLanguage.DEFAULT }
-val LocalAppStrings = compositionLocalOf { EnglishStrings as AppStrings }
