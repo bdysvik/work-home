@@ -52,6 +52,7 @@ interface FamilyRepository {
     fun observePendingUsers(): Flow<List<PendingUser>>
     fun observeChoreTemplates(): Flow<List<ChoreTemplate>>
     fun observeChores(currentUser: AppUser): Flow<List<Chore>>
+    fun observeCompletedChores(currentUser: AppUser): Flow<List<CompletedChore>>
     suspend fun bootstrapUserProfile(userId: String, email: String?)
     suspend fun addPendingUser(name: String, email: String, role: UserRole)
     suspend fun removePendingUser(emailKey: String)
@@ -108,6 +109,14 @@ class FirebaseFamilyRepository(
                 currentUser.isAdmin || chore.assignedToUserId.isBlank() || chore.assignedToUserId == currentUser.authUid
             }
             .sortedBy { it.title }
+    }
+
+    override fun observeCompletedChores(currentUser: AppUser): Flow<List<CompletedChore>> = collectionFlow(
+        completions
+            .whereEqualTo("userId", currentUser.id)
+            .orderBy("completedAt", Query.Direction.DESCENDING)
+    ) { documents ->
+        documents.mapNotNull { it.toCompletedChore() }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -247,6 +256,7 @@ class FirebaseFamilyRepository(
                 mapOf(
                     "userId" to user.id,
                     "choreId" to chore.id,
+                    "choreTitle" to chore.title,
                     "periodId" to periodId,
                     "reward" to chore.reward,
                     "completedAt" to FieldValue.serverTimestamp(),
@@ -367,6 +377,20 @@ class FirebaseFamilyRepository(
             createdBy = getString("createdBy") ?: "",
             active = getBoolean("active") ?: true,
             assignedToUserId = getString("assignedTo").orEmpty(),
+        )
+    }
+
+    private fun com.google.firebase.firestore.DocumentSnapshot.toCompletedChore(): CompletedChore? {
+        val choreId = getString("choreId") ?: return null
+        val title = getString("choreTitle")?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: "Completed chore"
+        return CompletedChore(
+            id = id,
+            choreId = choreId,
+            title = title,
+            reward = getLong("reward") ?: 0L,
+            completedAtEpochMillis = getTimestamp("completedAt")?.toDate()?.time,
         )
     }
 

@@ -57,6 +57,7 @@ import com.bdysvik.workhome.AppContainer
 import com.bdysvik.workhome.data.AppUser
 import com.bdysvik.workhome.data.Chore
 import com.bdysvik.workhome.data.ChoreTemplate
+import com.bdysvik.workhome.data.CompletedChore
 import com.bdysvik.workhome.data.PendingUser
 import com.bdysvik.workhome.data.UserRole
 import com.bdysvik.workhome.viewmodel.ChoreRowAction
@@ -71,8 +72,13 @@ import com.bdysvik.workhome.viewmodel.TemplateRowAction
 import com.bdysvik.workhome.viewmodel.UsersUiState
 import com.bdysvik.workhome.viewmodel.UsersViewModel
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 private object Routes {
@@ -388,6 +394,17 @@ private fun ChoresScreen(
         }
     }
     val daysLeftInMonth = daysLeftInCurrentMonth(currentDate)
+    val completedGroups = state.completedChores
+        .groupBy { completion -> completion.completedAtEpochMillis?.let(::yearMonthFromEpochMillis) }
+        .entries
+        .sortedWith { left, right ->
+            when {
+                left.key == null && right.key == null -> 0
+                left.key == null -> 1
+                right.key == null -> -1
+                else -> right.key.compareTo(left.key)
+            }
+        }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -422,7 +439,6 @@ private fun ChoresScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Your total reward: ${currentUser.currentRewardTotal}")
                     Text("Days left this month: $daysLeftInMonth")
-                    Text("Active chores", fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -479,6 +495,16 @@ private fun ChoresScreen(
                 }
             }
 
+            item {
+                Text("Active chores", fontWeight = FontWeight.Bold)
+            }
+
+            if (state.chores.isEmpty()) {
+                item {
+                    Text("No active chores right now.")
+                }
+            }
+
             items(state.chores, key = { it.id }) { chore ->
                 val busyAction = state.busyChoreActions[chore.id]
                 val isOpen = chore.assignedToUserId.isBlank()
@@ -516,6 +542,30 @@ private fun ChoresScreen(
                             OutlinedButton(onClick = { choreToDelete = chore }, enabled = busyAction == null) {
                                 Text(if (busyAction == ChoreRowAction.DELETE) "Deleting..." else "Delete chore")
                             }
+                        }
+                    }
+
+                    item {
+                        Text("Completed chores", fontWeight = FontWeight.Bold)
+                    }
+
+                    if (state.completedChores.isEmpty()) {
+                        item {
+                            Text("No completed chores yet.")
+                        }
+                    }
+
+                    completedGroups.forEach { (month, chores) ->
+                        item(key = "month-${month?.toString() ?: "unknown"}") {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(monthLabel(month), fontWeight = FontWeight.Bold)
+                                    Text("Total reward: ${chores.sumOf { it.reward }}")
+                                }
+                            }
+                        }
+                        items(chores, key = { it.id }) { completedChore ->
+                            CompletedChoreRow(completedChore)
                         }
                     }
                 }
@@ -598,6 +648,21 @@ private fun ChoresScreen(
 
 internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
 
+private val completionMonthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+private val completionTimestampFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a", Locale.getDefault())
+
+private fun yearMonthFromEpochMillis(epochMillis: Long): YearMonth =
+    YearMonth.from(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))
+
+private fun monthLabel(month: YearMonth?): String = month?.format(completionMonthFormatter) ?: "Unknown month"
+
+private fun completionTimestampLabel(epochMillis: Long?): String =
+    epochMillis?.let {
+        Instant.ofEpochMilli(it)
+            .atZone(ZoneId.systemDefault())
+            .format(completionTimestampFormatter)
+    } ?: "Unknown completion time"
+
 @Composable
 private fun ChoreTemplateRow(
     template: ChoreTemplate,
@@ -629,6 +694,17 @@ private fun ChoreTemplateRow(
                 enabled = !isBusy,
             ) {
                 Text(if (busyAction == TemplateRowAction.DELETE) "Deleting..." else "Delete")
+            }
+        }
+
+        @Composable
+        private fun CompletedChoreRow(chore: CompletedChore) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(chore.title, fontWeight = FontWeight.Bold)
+                    Text("Reward: ${chore.reward}")
+                    Text("Completed: ${completionTimestampLabel(chore.completedAtEpochMillis)}")
+                }
             }
         }
     }

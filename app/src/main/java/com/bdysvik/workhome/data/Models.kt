@@ -43,3 +43,11 @@ data class Chore(
     val active: Boolean,
     val assignedToUserId: String = "",
 )
+
+data class CompletedChore(
+    val id: String,
+    val choreId: String,
+    val title: String,
+    val reward: Long,
+    val completedAtEpochMillis: Long?,
+)
