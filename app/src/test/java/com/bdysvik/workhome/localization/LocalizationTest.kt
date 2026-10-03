@@ -111,6 +111,11 @@ class LocalizationTest {
             assertTrue(strings.totalRewardEligible.isNotBlank())
             assertTrue(strings.rewardEligiblePlaceholder.isNotBlank())
             assertTrue(strings.accumulatedReward(10, 100).isNotBlank())
+            assertTrue(strings.saveTemplateHeader.isNotBlank())
+            assertTrue(strings.autoCreationSchedule.isNotBlank())
+            assertTrue(strings.inviteFamilyMember.isNotBlank())
+            assertTrue(strings.adminControls.isNotBlank())
+            assertTrue(strings.resetDescription.isNotBlank())
         }
     }
 }

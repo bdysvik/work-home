@@ -968,7 +968,7 @@ private fun ChoresScreen(
                         border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
                     ) {
                         Text(
-                            text = "${state.chores.size} ${if (state.chores.size == 1) "task" else "tasks"}",
+                            text = strings.tasksCount(state.chores.size),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = WorkHomeColors.CyanAccent,
@@ -995,14 +995,14 @@ private fun ChoresScreen(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = if (state.editingTemplateId == null) "Save chore template" else "Edit chore template",
+                                    text = if (state.editingTemplateId == null) strings.saveTemplateHeader else strings.editTemplateHeader,
                                     fontWeight = FontWeight.Bold,
                                     color = WorkHomeColors.PrimaryText,
                                 )
                                 OutlinedTextField(
                                     value = state.templateTitle,
                                     onValueChange = onTemplateTitleChange,
-                                    label = { Text("Title") },
+                                    label = { Text(strings.templateTitleLabel) },
                                     modifier = Modifier.fillMaxWidth(),
                                     enabled = templateFormEnabled,
                                     colors = OutlinedTextFieldDefaults.colors(
@@ -1018,7 +1018,7 @@ private fun ChoresScreen(
                                 OutlinedTextField(
                                     value = state.templateRewardText,
                                     onValueChange = onTemplateRewardChange,
-                                    label = { Text("Minutes") },
+                                    label = { Text(strings.templateRewardLabel) },
                                     modifier = Modifier.fillMaxWidth(),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     enabled = templateFormEnabled,
@@ -1033,7 +1033,7 @@ private fun ChoresScreen(
                                     ),
                                 )
                                 Text(
-                                    text = "Auto-creation schedule",
+                                    text = strings.autoCreationSchedule,
                                     style = MaterialTheme.typography.labelMedium,
                                     color = WorkHomeColors.SecondaryText,
                                 )
@@ -1044,11 +1044,11 @@ private fun ChoresScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     val options = listOf(
-                                        null to "Manual",
-                                        1 to "Every day",
-                                        2 to "Every 2 days",
-                                        3 to "Every 3 days",
-                                        7 to "Weekly",
+                                        null to strings.recurrenceManual,
+                                        1 to strings.recurrenceDaily,
+                                        2 to strings.recurrenceTwoDays,
+                                        3 to strings.recurrenceThreeDays,
+                                        7 to strings.recurrenceWeekly,
                                     )
                                     options.forEach { (days, label) ->
                                         FilterChip(
@@ -1077,7 +1077,7 @@ private fun ChoresScreen(
                                             contentColor = Color.White,
                                         ),
                                     ) {
-                                        Text(if (state.editingTemplateId == null) "Save template" else "Update template")
+                                        Text(if (state.editingTemplateId == null) strings.saveTemplateButton else strings.updateTemplateButton)
                                     }
                                     if (state.editingTemplateId != null) {
                                         OutlinedButton(
@@ -1086,12 +1086,12 @@ private fun ChoresScreen(
                                             shape = WorkHomeShapes.PillShape,
                                             border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
                                         ) {
-                                            Text("Cancel edit")
+                                            Text(strings.cancelEdit)
                                         }
                                     }
                                 }
                                 if (state.templateFormSubmitting) {
-                                    Text("Saving template...", color = WorkHomeColors.SecondaryText, style = MaterialTheme.typography.bodySmall)
+                                    Text(strings.savingTemplate, color = WorkHomeColors.SecondaryText, style = MaterialTheme.typography.bodySmall)
                                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = WorkHomeColors.CyanAccent)
                                 }
                             }
@@ -1102,7 +1102,7 @@ private fun ChoresScreen(
                 if (state.choreTemplates.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Templates",
+                            text = strings.choreTemplates,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = WorkHomeColors.PrimaryText,
@@ -1136,7 +1136,7 @@ private fun ChoresScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = "No active chores right now.",
+                                text = strings.noActiveChores,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = WorkHomeColors.SecondaryText,
                             )
@@ -1216,7 +1216,7 @@ private fun ChoresScreen(
                                             border = BorderStroke(1.dp, Color(0xFFFFB74D)),
                                         ) {
                                             Text(
-                                                text = "Awaiting approval",
+                                                text = strings.awaitingApproval,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = Color(0xFFFFB74D),
@@ -1230,21 +1230,21 @@ private fun ChoresScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.Schedule,
-                                            contentDescription = "Minutes",
+                                            contentDescription = strings.templateRewardLabel,
                                             tint = WorkHomeColors.RewardStar,
                                             modifier = Modifier.size(14.dp),
                                         )
                                         Text(
-                                            text = "Minutes: ${chore.reward}",
+                                            text = strings.rewardMinutesFormat(chore.reward),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = WorkHomeColors.SecondaryText,
                                         )
                                     }
                                     val assignmentText = when {
-                                        isOpen -> "Unassigned"
-                                        isAssignedToCurrentUser -> "Assigned to you"
-                                        currentUser.isAdmin -> "Assigned to ${assigneeName ?: "another user"}"
-                                        else -> "Assigned"
+                                        isOpen -> strings.unassigned
+                                        isAssignedToCurrentUser -> strings.assignedToYou
+                                        currentUser.isAdmin -> strings.assignedToUser(assigneeName ?: strings.unassigned)
+                                        else -> strings.assigned
                                     }
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -1252,7 +1252,7 @@ private fun ChoresScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.Person,
-                                            contentDescription = "Assignee",
+                                            contentDescription = strings.assignee,
                                             tint = if (isAssignedToCurrentUser) WorkHomeColors.CyanAccent else WorkHomeColors.SecondaryText,
                                             modifier = Modifier.size(14.dp),
                                         )
@@ -1281,7 +1281,7 @@ private fun ChoresScreen(
                                             ),
                                         ) {
                                             Text(
-                                                text = if (busyAction == ChoreRowAction.APPROVE) "Approving..." else "Approve chore",
+                                                text = if (busyAction == ChoreRowAction.APPROVE) strings.approving else strings.approveChore,
                                                 fontWeight = FontWeight.Bold,
                                             )
                                         }
@@ -1311,7 +1311,7 @@ private fun ChoresScreen(
                                                 modifier = Modifier.size(18.dp),
                                             )
                                             Text(
-                                                text = if (busyAction == ChoreRowAction.ASSIGN) "Assigning..." else "Assign to me",
+                                                text = if (busyAction == ChoreRowAction.ASSIGN) strings.assigning else strings.assignToMe,
                                                 fontWeight = FontWeight.Bold,
                                             )
                                         }
@@ -1339,7 +1339,7 @@ private fun ChoresScreen(
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
-                                                    text = "Completed for this month",
+                                                    text = strings.completedThisMonth,
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     color = WorkHomeColors.CyanAccent,
                                                     fontWeight = FontWeight.SemiBold,
@@ -1389,7 +1389,7 @@ private fun ChoresScreen(
                                                         modifier = Modifier.size(20.dp),
                                                     )
                                                     Text(
-                                                        text = if (busyAction == ChoreRowAction.COMPLETE) "Completing..." else "Complete for me",
+                                                        text = if (busyAction == ChoreRowAction.COMPLETE) strings.completing else strings.completeForMe,
                                                         fontWeight = FontWeight.Bold,
                                                         color = Color.White,
                                                         style = MaterialTheme.typography.bodyMedium,
@@ -1416,7 +1416,7 @@ private fun ChoresScreen(
                                         contentColor = WorkHomeColors.SecondaryText,
                                     ),
                                 ) {
-                                    Text(if (busyAction == ChoreRowAction.RESET) "Resetting..." else "Reset assignment")
+                                    Text(if (busyAction == ChoreRowAction.RESET) strings.resettingAssignment else strings.resetAssignment)
                                 }
                             }
                             if (currentUser.isAdmin) {
@@ -1430,7 +1430,7 @@ private fun ChoresScreen(
                                         contentColor = Color(0xFFFF6E6E),
                                     ),
                                 ) {
-                                    Text(if (busyAction == ChoreRowAction.DELETE) "Deleting..." else "Delete chore")
+                                    Text(if (busyAction == ChoreRowAction.DELETE) strings.deleting else strings.deleteChore)
                                 }
                             }
                         }
@@ -1448,7 +1448,7 @@ private fun ChoresScreen(
                     )
                     if (state.completedChores.isEmpty()) {
                         Text(
-                            text = "No completed chores yet.",
+                            text = strings.noCompletedChores,
                             style = MaterialTheme.typography.bodyMedium,
                             color = WorkHomeColors.SecondaryText,
                         )
@@ -1480,7 +1480,7 @@ private fun ChoresScreen(
                                     color = WorkHomeColors.PrimaryText,
                                 )
                                 Text(
-                                    text = "Total reward: ${chores.sumOf { it.reward }}",
+                                    text = strings.totalRewardFormat(chores.sumOf { it.reward }),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = WorkHomeColors.SecondaryText,
                                 )
@@ -1547,7 +1547,7 @@ private fun ChoresScreen(
                     Text(strings.cancel, color = WorkHomeColors.SecondaryText)
                 }
             },
-            title = { Text("Delete chore?") },
+            title = { Text(strings.deleteChoreTitle) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(chore.title)
@@ -1586,7 +1586,7 @@ private fun ChoresScreen(
                     Text(strings.cancel, color = WorkHomeColors.SecondaryText)
                 }
             },
-            title = { Text("Delete template?") },
+            title = { Text(strings.deleteTemplateTitle) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(template.title)
@@ -1719,6 +1719,7 @@ private fun ChoreTemplateRow(
     onActivateTemplate: (ChoreTemplate) -> Unit,
     onDeleteTemplate: (ChoreTemplate) -> Unit,
 ) {
+    val strings = LocalAppStrings.current
     val isBusy = templateFormSubmitting || busyAction != null
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1753,13 +1754,13 @@ private fun ChoreTemplateRow(
                             modifier = Modifier.size(14.dp),
                         )
                         Text(
-                            text = "Minutes: ${template.reward}",
+                            text = strings.rewardMinutesFormat(template.reward),
                             color = WorkHomeColors.SecondaryText,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                     Text(
-                        text = "• Schedule: ${template.recurrenceLabel()}",
+                        text = "• ${strings.recurrence}: ${template.recurrenceLabel()}",
                         color = if (template.repeatIntervalDays != null) WorkHomeColors.CyanAccent else WorkHomeColors.SecondaryText,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -1774,7 +1775,7 @@ private fun ChoreTemplateRow(
                         shape = WorkHomeShapes.PillShape,
                         colors = ButtonDefaults.buttonColors(containerColor = WorkHomeColors.PrimaryBlue),
                     ) {
-                        Text(if (busyAction == TemplateRowAction.ACTIVATE) "Activating..." else "Activate")
+                        Text(if (busyAction == TemplateRowAction.ACTIVATE) strings.activating else strings.activate)
                     }
                     OutlinedButton(
                         onClick = { onEditTemplate(template) },
@@ -1782,7 +1783,7 @@ private fun ChoreTemplateRow(
                         shape = WorkHomeShapes.PillShape,
                         border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
                     ) {
-                        Text("Edit")
+                        Text(strings.edit)
                     }
                     OutlinedButton(
                         onClick = { onDeleteTemplate(template) },
@@ -1791,7 +1792,7 @@ private fun ChoreTemplateRow(
                         border = BorderStroke(1.dp, Color(0x33FF5252)),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF6E6E)),
                     ) {
-                        Text(if (busyAction == TemplateRowAction.DELETE) "Deleting..." else "Delete")
+                        Text(if (busyAction == TemplateRowAction.DELETE) strings.deleting else strings.delete)
                     }
                 }
             }
@@ -1857,7 +1858,7 @@ private fun CreateChoreScreen(
                                 value = state.choreTitleInput,
                                 onValueChange = onChoreTitleChange,
                                 label = { Text(strings.choreTitleLabel) },
-                                placeholder = { Text("e.g. Wash dishes") },
+                                placeholder = { Text(strings.choreTitlePlaceholder) },
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !state.createChoreSubmitting,
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -1874,7 +1875,7 @@ private fun CreateChoreScreen(
                                 value = state.choreRewardInputText,
                                 onValueChange = onChoreRewardChange,
                                 label = { Text(strings.rewardMinutes) },
-                                placeholder = { Text("e.g. 15") },
+                                placeholder = { Text(strings.choreRewardPlaceholder) },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 enabled = !state.createChoreSubmitting,
@@ -1890,7 +1891,7 @@ private fun CreateChoreScreen(
                             )
                             if (currentUser.isAdmin) {
                                 Text(
-                                    text = "Assign to (optional):",
+                                    text = strings.assignToOptional,
                                     style = MaterialTheme.typography.labelMedium,
                                     color = WorkHomeColors.SecondaryText,
                                 )
@@ -1946,7 +1947,7 @@ private fun CreateChoreScreen(
                                             enabled = !state.createChoreSubmitting,
                                         )
                                         Text(
-                                            text = "Mark as completed immediately",
+                                            text = strings.markCompletedImmediately,
                                             color = WorkHomeColors.PrimaryText,
                                             style = MaterialTheme.typography.bodyMedium,
                                         )
@@ -1963,7 +1964,7 @@ private fun CreateChoreScreen(
                                         enabled = !state.createChoreSubmitting,
                                     )
                                     Text(
-                                        text = "Set to complete (awaits admin approval)",
+                                        text = strings.setToCompleteAwaitsApproval,
                                         color = WorkHomeColors.PrimaryText,
                                         style = MaterialTheme.typography.bodyMedium,
                                     )
@@ -2005,6 +2006,7 @@ private fun UsersScreen(
     onClearMessage: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalAppStrings.current
     var userToRemove by remember { mutableStateOf<AppUser?>(null) }
     var pendingToRemove by remember { mutableStateOf<PendingUser?>(null) }
     var userForGoalSetting by remember { mutableStateOf<AppUser?>(null) }
@@ -2025,27 +2027,27 @@ private fun UsersScreen(
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Invite family member", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(value = state.name, onValueChange = onNameChange, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = state.email, onValueChange = onEmailChange, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
-                        Text("Role")
+                        Text(strings.inviteFamilyMember, fontWeight = FontWeight.Bold)
+                        OutlinedTextField(value = state.name, onValueChange = onNameChange, label = { Text(strings.name) }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = state.email, onValueChange = onEmailChange, label = { Text(strings.email) }, modifier = Modifier.fillMaxWidth())
+                        Text(strings.role)
                         RowRoles(selectedRole = state.role, onRoleChange = onRoleChange)
                         Button(onClick = onAddUser, enabled = !state.submitting) {
-                            Text(if (state.submitting) "Saving..." else "Add invite")
+                            Text(if (state.submitting) strings.savingInvite else strings.addInvite)
                         }
-                        Text("Password workflow: invite the user here, then have them use Create invited account on the login screen. Passwords stay in Firebase Auth and are never stored in Firestore.")
+                        Text(strings.passwordWorkflowNote)
                     }
                 }
             }
 
-            item { Text("Active users", fontWeight = FontWeight.Bold) }
+            item { Text(strings.activeUsers, fontWeight = FontWeight.Bold) }
             items(state.users, key = { it.id }) { user ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(user.name, fontWeight = FontWeight.Bold)
                         Text(user.email)
-                        Text("Role: ${user.role.value}")
-                        Text("Goal: ${user.rewardGoal?.let { "$it min" } ?: "Not set"}")
+                        Text(strings.roleFormat(user.role.value))
+                        Text(user.rewardGoal?.let { strings.goalFormat(it) } ?: strings.goalNotSet)
                         val accumulated = user.accumulatedReward()
                         val eligible = user.rewardEligible
                         if (eligible != null) {
@@ -2054,7 +2056,7 @@ private fun UsersScreen(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
-                                    text = "${LocalAppStrings.current.accumulatedRewardLabel}: ",
+                                    text = "${strings.accumulatedRewardLabel}: ",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = WorkHomeColors.SecondaryText,
                                 )
@@ -2079,25 +2081,25 @@ private fun UsersScreen(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { userForGoalSetting = user }, enabled = !state.submitting) {
-                                Text(LocalAppStrings.current.setGoalTitle)
+                                Text(strings.setGoalTitle)
                             }
                             OutlinedButton(onClick = { userToRemove = user }, enabled = !state.submitting) {
-                                Text("Remove profile")
+                                Text(strings.removeProfile)
                             }
                         }
                     }
                 }
             }
 
-            item { Text("Pending invites", fontWeight = FontWeight.Bold) }
+            item { Text(strings.pendingInvites, fontWeight = FontWeight.Bold) }
             items(state.pendingUsers, key = { it.emailKey }) { pendingUser ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(pendingUser.name, fontWeight = FontWeight.Bold)
                         Text(pendingUser.email)
-                        Text("Role: ${pendingUser.role.value}")
+                        Text(strings.roleFormat(pendingUser.role.value))
                         OutlinedButton(onClick = { pendingToRemove = pendingUser }, enabled = !state.submitting) {
-                            Text("Remove invite")
+                            Text(strings.removeInvite)
                         }
                     }
                 }
@@ -2107,8 +2109,8 @@ private fun UsersScreen(
 
     userToRemove?.let { user ->
         ConfirmDialog(
-            title = "Remove user profile?",
-            body = "This deletes the Firestore profile for ${user.email}. Delete the Firebase Auth user separately from the Firebase Console or a trusted backend if needed.",
+            title = strings.removeProfileTitle,
+            body = strings.removeProfileBody(user.email),
             onConfirm = {
                 onRemoveUser(user)
                 userToRemove = null
@@ -2119,8 +2121,8 @@ private fun UsersScreen(
 
     pendingToRemove?.let { pendingUser ->
         ConfirmDialog(
-            title = "Remove invite?",
-            body = "This removes the pending invite for ${pendingUser.email}.",
+            title = strings.removeInviteTitle,
+            body = strings.removeInviteBody(pendingUser.email),
             onConfirm = {
                 onRemovePendingUser(pendingUser)
                 pendingToRemove = null
@@ -2146,11 +2148,12 @@ private fun RowRoles(
     selectedRole: UserRole,
     onRoleChange: (UserRole) -> Unit,
 ) {
-    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    val strings = LocalAppStrings.current
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         listOf(UserRole.MEMBER, UserRole.ADMIN).forEach { role ->
-            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected = selectedRole == role, onClick = { onRoleChange(role) })
-                Text(role.value)
+                Text(if (role == UserRole.ADMIN) strings.roleAdmin else strings.roleMember)
             }
         }
     }
@@ -2164,6 +2167,7 @@ private fun RewardsScreen(
     onClearMessage: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val strings = LocalAppStrings.current
     var showResetConfirmation by rememberSaveable { mutableStateOf(false) }
     var userForGoalSetting by remember { mutableStateOf<AppUser?>(null) }
 
@@ -2184,10 +2188,10 @@ private fun RewardsScreen(
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Admin controls", fontWeight = FontWeight.Bold)
-                            Text("Reset archives the current totals into history before setting every user total back to zero.")
+                            Text(strings.adminControls, fontWeight = FontWeight.Bold)
+                            Text(strings.resetDescription)
                             Button(onClick = { showResetConfirmation = true }, enabled = !state.resetting) {
-                                Text(if (state.resetting) "Resetting..." else "Reset minutes")
+                                Text(if (state.resetting) strings.resettingMinutes else strings.resetMinutes)
                             }
                         }
                     }
@@ -2212,11 +2216,11 @@ private fun RewardsScreen(
                             Text(user.name, fontWeight = FontWeight.Bold)
                             if (state.currentUser.isAdmin) {
                                 TextButton(onClick = { userForGoalSetting = user }) {
-                                    Text(LocalAppStrings.current.setGoalTitle)
+                                    Text(strings.setGoalTitle)
                                 }
                             }
                         }
-                        Text("Total minutes: ${user.rewardProgressText()}")
+                        Text(strings.totalMinutesFormat(user.rewardProgressText()))
                         val accumulated = user.accumulatedReward()
                         val eligible = user.rewardEligible
                         if (eligible != null) {
@@ -2225,7 +2229,7 @@ private fun RewardsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
-                                    text = "${LocalAppStrings.current.accumulatedRewardLabel}: ",
+                                    text = "${strings.accumulatedRewardLabel}: ",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = WorkHomeColors.SecondaryText,
                                 )
@@ -2248,7 +2252,7 @@ private fun RewardsScreen(
                                 )
                             }
                         }
-                        Text("Days since last completed chore: $daysText")
+                        Text(strings.daysSinceLastChoreFormat(daysText))
                     }
                 }
             }
@@ -2257,8 +2261,8 @@ private fun RewardsScreen(
 
     if (showResetConfirmation) {
         ConfirmDialog(
-            title = "Reset all minutes?",
-            body = "This archives the current totals and zeroes out every family member's running minutes.",
+            title = strings.resetConfirmTitle,
+            body = strings.resetConfirmBody,
             onConfirm = {
                 onResetRewards()
                 showResetConfirmation = false
@@ -2321,7 +2325,7 @@ private fun SetGoalDialog(
         title = { Text(strings.setGoalTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("${strings.setGoalTitle} for ${user.name}:")
+                Text(strings.setGoalForUser(user.name))
                 OutlinedTextField(
                     value = goalText,
                     onValueChange = { input ->
@@ -2346,7 +2350,7 @@ private fun SetGoalDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = errorText != null,
                     supportingText = {
-                        Text(errorText ?: "Leave empty to clear")
+                        Text(errorText ?: strings.leaveEmptyToClear)
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
