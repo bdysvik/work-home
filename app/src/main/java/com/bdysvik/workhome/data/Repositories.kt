@@ -6,6 +6,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -88,7 +89,7 @@ interface FamilyRepository {
     suspend fun completeChore(chore: Chore, user: AppUser)
     suspend fun approveChore(chore: Chore, admin: AppUser)
     suspend fun resetRewards(admin: AppUser)
-    suspend fun setUserGoal(userId: String, goal: Long?)
+    suspend fun setUserGoal(userId: String, goal: Long?, rewardEligible: Long? = null)
 }
 
 class FirebaseFamilyRepository(
@@ -134,11 +135,10 @@ class FirebaseFamilyRepository(
     }
 
     override fun observeCompletedChores(currentUser: AppUser): Flow<List<CompletedChore>> = collectionFlow(
-        completions
-            .whereEqualTo("userId", currentUser.authUid)
-            .orderBy("completedAt", Query.Direction.DESCENDING)
+        completions.whereEqualTo("userId", currentUser.authUid)
     ) { documents ->
         documents.mapNotNull { it.toCompletedChore() }
+            .sortedByDescending { it.completedAtMillis ?: 0L }
     }
 
     override suspend fun bootstrapUserProfile(userId: String, email: String?) {
@@ -242,32 +242,34 @@ class FirebaseFamilyRepository(
         for (doc in templatesSnapshot.documents) {
             val template = doc.toChoreTemplate() ?: continue
             if (template.isDue(nowMillis)) {
-                val spawned = firestore.runTransaction { transaction ->
-                    val freshDoc = transaction.get(choreTemplates.document(template.id))
-                    val freshTemplate = freshDoc.toChoreTemplate() ?: return@runTransaction false
-                    if (!freshTemplate.isDue(System.currentTimeMillis())) {
-                        return@runTransaction false
-                    }
+                val spawned = runCatching {
+                    firestore.runTransaction { transaction ->
+                        val freshDoc = transaction.get(choreTemplates.document(template.id))
+                        val freshTemplate = freshDoc.toChoreTemplate() ?: return@runTransaction false
+                        if (!freshTemplate.isDue(System.currentTimeMillis())) {
+                            return@runTransaction false
+                        }
 
-                    val choreRef = chores.document()
-                    transaction.set(
-                        choreRef,
-                        mapOf(
-                            "title" to freshTemplate.title.trim(),
-                            "reward" to freshTemplate.reward,
-                            "createdBy" to freshTemplate.createdBy,
-                            "active" to true,
-                            "assignedTo" to "",
-                            "fromTemplateId" to freshTemplate.id,
-                        ),
-                    )
+                        val choreRef = chores.document()
+                        transaction.set(
+                            choreRef,
+                            mapOf(
+                                "title" to freshTemplate.title.trim(),
+                                "reward" to freshTemplate.reward,
+                                "createdBy" to freshTemplate.createdBy,
+                                "active" to true,
+                                "assignedTo" to "",
+                                "fromTemplateId" to freshTemplate.id,
+                            ),
+                        )
 
-                    transaction.update(
-                        choreTemplates.document(freshTemplate.id),
-                        mapOf("lastSpawnedAt" to FieldValue.serverTimestamp()),
-                    )
-                    true
-                }.await()
+                        transaction.update(
+                            choreTemplates.document(freshTemplate.id),
+                            mapOf("lastSpawnedAt" to FieldValue.serverTimestamp()),
+                        )
+                        true
+                    }.await()
+                }.getOrDefault(false)
 
                 if (spawned) {
                     spawnedCount++
@@ -574,12 +576,19 @@ class FirebaseFamilyRepository(
         }.await()
     }
 
-    override suspend fun setUserGoal(userId: String, goal: Long?) {
+    override suspend fun setUserGoal(userId: String, goal: Long?, rewardEligible: Long?) {
+        val updates = mutableMapOf<String, Any>()
         if (goal == null || goal <= 0) {
-            users.document(userId).update("rewardGoal", FieldValue.delete()).await()
+            updates["rewardGoal"] = FieldValue.delete()
         } else {
-            users.document(userId).update("rewardGoal", goal).await()
+            updates["rewardGoal"] = goal
         }
+        if (rewardEligible == null || rewardEligible <= 0) {
+            updates["rewardEligible"] = FieldValue.delete()
+        } else {
+            updates["rewardEligible"] = rewardEligible
+        }
+        users.document(userId).set(updates, SetOptions.merge()).await()
     }
 
     private fun <T> documentFlow(
@@ -617,6 +626,7 @@ class FirebaseFamilyRepository(
         val lastCompletedAtMillis = getTimestamp("lastCompletedAt")?.toDate()?.time
             ?: getLong("lastCompletedAt")
         val rewardGoal = getLong("rewardGoal")
+        val rewardEligible = getLong("rewardEligible")
         return AppUser(
             id = id,
             name = name,
@@ -626,6 +636,7 @@ class FirebaseFamilyRepository(
             currentRewardTotal = getLong("currentRewardTotal") ?: 0L,
             lastCompletedAtMillis = lastCompletedAtMillis,
             rewardGoal = rewardGoal,
+            rewardEligible = rewardEligible,
         )
     }
 

@@ -211,6 +211,18 @@ class ChoresViewModel(
     fun selectAssigneeUser(user: AppUser?) = _uiState.update { it.copy(selectedAssigneeUser = user) }
     fun toggleMarkCompleted(value: Boolean) = _uiState.update { it.copy(markCompletedInput = value) }
 
+    fun setUserGoal(user: AppUser, goal: Long?, rewardEligible: Long?) {
+        viewModelScope.launch {
+            val result = runCatching { familyRepository.setUserGoal(user.id, goal, rewardEligible) }
+            _uiState.update {
+                it.copy(
+                    message = result.exceptionOrNull()?.localizedMessage
+                        ?: if (result.isSuccess) "Goal updated for ${user.name}." else null,
+                )
+            }
+        }
+    }
+
     fun createChore() {
         val state = _uiState.value
         if (state.createChoreSubmitting) return
@@ -587,10 +599,10 @@ class UsersViewModel(
         }
     }
 
-    fun setUserGoal(user: AppUser, goal: Long?) {
+    fun setUserGoal(user: AppUser, goal: Long?, rewardEligible: Long? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(submitting = true, message = null) }
-            val result = runCatching { familyRepository.setUserGoal(user.id, goal) }
+            val result = runCatching { familyRepository.setUserGoal(user.id, goal, rewardEligible) }
             _uiState.update {
                 it.copy(
                     submitting = false,
@@ -641,9 +653,9 @@ class RewardsViewModel(
         }
     }
 
-    fun setUserGoal(user: AppUser, goal: Long?) {
+    fun setUserGoal(user: AppUser, goal: Long?, rewardEligible: Long? = null) {
         viewModelScope.launch {
-            val result = runCatching { familyRepository.setUserGoal(user.id, goal) }
+            val result = runCatching { familyRepository.setUserGoal(user.id, goal, rewardEligible) }
             _uiState.update {
                 it.copy(
                     message = result.exceptionOrNull()?.localizedMessage

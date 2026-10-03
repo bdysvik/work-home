@@ -71,10 +71,17 @@ interface AppStrings {
     val unassigned: String
     val markAsCompleted: String
     val createChoreButton: String
+    val creating: String
 
-    // Rewards screen
+    // Rewards & Goals
     val rewardsTitle: String
     val minuteBalance: String
+    val setGoalTitle: String
+    val targetMinutesGoal: String
+    val totalRewardEligible: String
+    val rewardEligiblePlaceholder: String
+    val accumulatedRewardLabel: String
+    fun accumulatedReward(accumulated: Long, eligible: Long): String
 
     // Users screen
     val familyMembers: String
@@ -156,9 +163,16 @@ object EnglishStrings : AppStrings {
     override val unassigned = "Unassigned"
     override val markAsCompleted = "Mark as completed"
     override val createChoreButton = "Create"
+    override val creating = "Creating..."
 
     override val rewardsTitle = "Minutes"
     override val minuteBalance = "Minute balance"
+    override val setGoalTitle = "Set goal and reward"
+    override val targetMinutesGoal = "Target minutes goal"
+    override val totalRewardEligible = "Total reward eligible"
+    override val rewardEligiblePlaceholder = "e.g. 500"
+    override val accumulatedRewardLabel = "Accumulated reward"
+    override fun accumulatedReward(accumulated: Long, eligible: Long) = "$accumulatedRewardLabel: $accumulated / $eligible"
 
     override val familyMembers = "Family members"
     override val pendingInvites = "Pending invites"
@@ -235,9 +249,16 @@ object NorwegianStrings : AppStrings {
     override val unassigned = "Ikke tildelt"
     override val markAsCompleted = "Marker som fullført"
     override val createChoreButton = "Opprett"
+    override val creating = "Oppretter..."
 
     override val rewardsTitle = "Minutter"
     override val minuteBalance = "Minuttbalanse"
+    override val setGoalTitle = "Sett mål og belønning"
+    override val targetMinutesGoal = "Mål i minutter"
+    override val totalRewardEligible = "Maksimal belønning tilgjengelig"
+    override val rewardEligiblePlaceholder = "f.eks. 500"
+    override val accumulatedRewardLabel = "Opptjent belønning"
+    override fun accumulatedReward(accumulated: Long, eligible: Long) = "$accumulatedRewardLabel: $accumulated / $eligible"
 
     override val familyMembers = "Familiemedlemmer"
     override val pendingInvites = "Ventende invitasjoner"

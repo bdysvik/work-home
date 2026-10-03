@@ -5,7 +5,11 @@ import org.junit.Test
 
 class AppUserTest {
 
-    private fun createUser(currentRewardTotal: Long, rewardGoal: Long?): AppUser {
+    private fun createUser(
+        currentRewardTotal: Long,
+        rewardGoal: Long?,
+        rewardEligible: Long? = null,
+    ): AppUser {
         return AppUser(
             id = "user1",
             name = "UserA",
@@ -14,6 +18,7 @@ class AppUserTest {
             authUid = "uid1",
             currentRewardTotal = currentRewardTotal,
             rewardGoal = rewardGoal,
+            rewardEligible = rewardEligible,
         )
     }
 
@@ -65,5 +70,39 @@ class AppUserTest {
 
         val userNegative = createUser(currentRewardTotal = 50, rewardGoal = -10)
         assertEquals("50", userNegative.rewardProgressText())
+    }
+
+    @Test
+    fun accumulatedReward_eligible200AndTenPercent_returns20() {
+        val user = createUser(currentRewardTotal = 20, rewardGoal = 200, rewardEligible = 200)
+        assertEquals(20L, user.accumulatedReward())
+    }
+
+    @Test
+    fun accumulatedReward_eligible500AndTenPercent_returns50() {
+        val user = createUser(currentRewardTotal = 50, rewardGoal = 500, rewardEligible = 500)
+        assertEquals(50L, user.accumulatedReward())
+    }
+
+    @Test
+    fun accumulatedReward_roundsUpToNextInteger() {
+        // 10 / 300 = 0.033333..., 200 * 0.033333... = 6.666..., ceil -> 7
+        val user = createUser(currentRewardTotal = 10, rewardGoal = 300, rewardEligible = 200)
+        assertEquals(7L, user.accumulatedReward())
+    }
+
+    @Test
+    fun accumulatedReward_nullOrZeroInputs_returnsNull() {
+        val noGoal = createUser(currentRewardTotal = 50, rewardGoal = null, rewardEligible = 200)
+        assertEquals(null, noGoal.accumulatedReward())
+
+        val noEligible = createUser(currentRewardTotal = 50, rewardGoal = 100, rewardEligible = null)
+        assertEquals(null, noEligible.accumulatedReward())
+
+        val zeroGoal = createUser(currentRewardTotal = 50, rewardGoal = 0, rewardEligible = 200)
+        assertEquals(null, zeroGoal.accumulatedReward())
+
+        val zeroEligible = createUser(currentRewardTotal = 50, rewardGoal = 100, rewardEligible = 0)
+        assertEquals(null, zeroEligible.accumulatedReward())
     }
 }

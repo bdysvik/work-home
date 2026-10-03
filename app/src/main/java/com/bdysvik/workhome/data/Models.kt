@@ -5,6 +5,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import kotlin.math.ceil
 
 enum class UserRole(val value: String) {
     ADMIN("admin"),
@@ -25,6 +26,7 @@ data class AppUser(
     val currentRewardTotal: Long,
     val lastCompletedAtMillis: Long? = null,
     val rewardGoal: Long? = null,
+    val rewardEligible: Long? = null,
 ) {
     val isAdmin: Boolean = role == UserRole.ADMIN
 
@@ -43,6 +45,14 @@ data class AppUser(
         } else {
             currentRewardTotal.toString()
         }
+    }
+
+    fun accumulatedReward(): Long? {
+        val goal = rewardGoal ?: return null
+        val eligible = rewardEligible ?: return null
+        if (goal <= 0 || eligible <= 0) return null
+        val percentage = currentRewardTotal.toDouble() / goal.toDouble()
+        return ceil(eligible * percentage).toLong()
     }
 }
 

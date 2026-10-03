@@ -56,7 +56,10 @@ class LocalizationTest {
         assertEquals("Cancel", strings.cancel)
         assertEquals("Confirm", strings.confirm)
         assertEquals("Save", strings.save)
+        assertEquals("Creating...", strings.creating)
         assertEquals("Every 4 days", strings.recurrenceEveryNDays(4))
+        assertEquals("Total reward eligible", strings.totalRewardEligible)
+        assertEquals("Accumulated reward: 20 / 200", strings.accumulatedReward(20, 200))
     }
 
     @Test
@@ -76,7 +79,10 @@ class LocalizationTest {
         assertEquals("Avbryt", strings.cancel)
         assertEquals("Bekreft", strings.confirm)
         assertEquals("Lagre", strings.save)
+        assertEquals("Oppretter...", strings.creating)
         assertEquals("Hver 4. dag", strings.recurrenceEveryNDays(4))
+        assertEquals("Maksimal belønning tilgjengelig", strings.totalRewardEligible)
+        assertEquals("Opptjent belønning: 20 / 200", strings.accumulatedReward(20, 200))
     }
 
     @Test
@@ -99,6 +105,12 @@ class LocalizationTest {
             assertTrue(strings.confirm.isNotBlank())
             assertTrue(strings.save.isNotBlank())
             assertTrue(strings.delete.isNotBlank())
+            assertTrue(strings.creating.isNotBlank())
+            assertTrue(strings.setGoalTitle.isNotBlank())
+            assertTrue(strings.targetMinutesGoal.isNotBlank())
+            assertTrue(strings.totalRewardEligible.isNotBlank())
+            assertTrue(strings.rewardEligiblePlaceholder.isNotBlank())
+            assertTrue(strings.accumulatedReward(10, 100).isNotBlank())
         }
     }
 }

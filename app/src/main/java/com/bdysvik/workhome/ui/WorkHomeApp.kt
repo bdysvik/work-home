@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DryCleaning
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -85,7 +86,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -143,6 +146,139 @@ private object Routes {
     const val CreateChore = "create_chore"
     const val Rewards = "rewards"
     const val Users = "users"
+}
+
+private val GoldCoinsIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "GoldCoins",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        // === LEFT STACK (2 coins) ===
+        // Bottom left coin edge
+        path(fill = SolidColor(Color(0xFFFFB300))) {
+            moveTo(2f, 14f)
+            lineTo(2f, 17f)
+            curveTo(2f, 18.8f, 12f, 18.8f, 12f, 17f)
+            lineTo(12f, 14f)
+            curveTo(12f, 15.8f, 2f, 15.8f, 2f, 14f)
+            close()
+        }
+        // Bottom left coin top
+        path(fill = SolidColor(Color(0xFFFFD700))) {
+            moveTo(7f, 12.5f)
+            curveTo(9.8f, 12.5f, 12f, 13.2f, 12f, 14.2f)
+            curveTo(12f, 15.2f, 9.8f, 16f, 7f, 16f)
+            curveTo(4.2f, 16f, 2f, 15.2f, 2f, 14.2f)
+            curveTo(2f, 13.2f, 4.2f, 12.5f, 7f, 12.5f)
+            close()
+        }
+        // Top left coin edge
+        path(fill = SolidColor(Color(0xFFFFB300))) {
+            moveTo(2f, 10f)
+            lineTo(2f, 13f)
+            curveTo(2f, 14.8f, 12f, 14.8f, 12f, 13f)
+            lineTo(12f, 10f)
+            curveTo(12f, 11.8f, 2f, 11.8f, 2f, 10f)
+            close()
+        }
+        // Top left coin top
+        path(fill = SolidColor(Color(0xFFFFE57F))) {
+            moveTo(7f, 8.5f)
+            curveTo(9.8f, 8.5f, 12f, 9.2f, 12f, 10.2f)
+            curveTo(12f, 11.2f, 9.8f, 12f, 7f, 12f)
+            curveTo(4.2f, 12f, 2f, 11.2f, 2f, 10.2f)
+            curveTo(2f, 9.2f, 4.2f, 8.5f, 7f, 8.5f)
+            close()
+        }
+
+        // === RIGHT STACK (3 coins) ===
+        // Bottom right coin edge
+        path(fill = SolidColor(Color(0xFFFFB300))) {
+            moveTo(12f, 13f)
+            lineTo(12f, 16f)
+            curveTo(12f, 17.8f, 22f, 17.8f, 22f, 16f)
+            lineTo(22f, 13f)
+            curveTo(22f, 14.8f, 12f, 14.8f, 12f, 13f)
+            close()
+        }
+        // Bottom right coin top
+        path(fill = SolidColor(Color(0xFFFFD700))) {
+            moveTo(17f, 11.5f)
+            curveTo(19.8f, 11.5f, 22f, 12.2f, 22f, 13.2f)
+            curveTo(22f, 14.2f, 19.8f, 15f, 17f, 15f)
+            curveTo(14.2f, 15f, 12f, 14.2f, 12f, 13.2f)
+            curveTo(12f, 12.2f, 14.2f, 11.5f, 17f, 11.5f)
+            close()
+        }
+        // Middle right coin edge
+        path(fill = SolidColor(Color(0xFFFFB300))) {
+            moveTo(12f, 9f)
+            lineTo(12f, 12f)
+            curveTo(12f, 13.8f, 22f, 13.8f, 22f, 12f)
+            lineTo(22f, 9f)
+            curveTo(22f, 10.8f, 12f, 10.8f, 12f, 9f)
+            close()
+        }
+        // Middle right coin top
+        path(fill = SolidColor(Color(0xFFFFD700))) {
+            moveTo(17f, 7.5f)
+            curveTo(19.8f, 7.5f, 22f, 8.2f, 22f, 9.2f)
+            curveTo(22f, 10.2f, 19.8f, 11f, 17f, 11f)
+            curveTo(14.2f, 11f, 12f, 10.2f, 12f, 9.2f)
+            curveTo(12f, 8.2f, 14.2f, 7.5f, 17f, 7.5f)
+            close()
+        }
+        // Top right coin edge
+        path(fill = SolidColor(Color(0xFFFFB300))) {
+            moveTo(12f, 5f)
+            lineTo(12f, 8f)
+            curveTo(12f, 9.8f, 22f, 9.8f, 22f, 8f)
+            lineTo(22f, 5f)
+            curveTo(22f, 6.8f, 12f, 6.8f, 12f, 5f)
+            close()
+        }
+        // Top right coin top
+        path(fill = SolidColor(Color(0xFFFFE57F))) {
+            moveTo(17f, 3.5f)
+            curveTo(19.8f, 3.5f, 22f, 4.2f, 22f, 5.2f)
+            curveTo(22f, 6.2f, 19.8f, 7f, 17f, 7f)
+            curveTo(14.2f, 7f, 12f, 6.2f, 12f, 5.2f)
+            curveTo(12f, 4.2f, 14.2f, 3.5f, 17f, 3.5f)
+            close()
+        }
+
+        // === FRONT CENTER COIN ===
+        // Front coin edge
+        path(fill = SolidColor(Color(0xFFE69100))) {
+            moveTo(6f, 17f)
+            lineTo(6f, 20f)
+            curveTo(6f, 22f, 18f, 22f, 18f, 20f)
+            lineTo(18f, 17f)
+            curveTo(18f, 19f, 6f, 19f, 6f, 17f)
+            close()
+        }
+        // Front coin top
+        path(fill = SolidColor(Color(0xFFFFF099))) {
+            moveTo(12f, 15f)
+            curveTo(15.3f, 15f, 18f, 15.9f, 18f, 17f)
+            curveTo(18f, 18.1f, 15.3f, 19f, 12f, 19f)
+            curveTo(8.7f, 19f, 6f, 18.1f, 6f, 17f)
+            curveTo(6f, 15.9f, 8.7f, 15f, 12f, 15f)
+            close()
+        }
+        // Front coin inner detail ring
+        path(fill = SolidColor(Color(0xFFFFC107))) {
+            moveTo(12f, 15.8f)
+            curveTo(14.5f, 15.8f, 16.5f, 16.3f, 16.5f, 17f)
+            curveTo(16.5f, 17.7f, 14.5f, 18.2f, 12f, 18.2f)
+            curveTo(9.5f, 18.2f, 7.5f, 17.7f, 7.5f, 17f)
+            curveTo(7.5f, 16.3f, 9.5f, 15.8f, 12f, 15.8f)
+            close()
+        }
+    }.build()
 }
 
 @Composable
@@ -367,6 +503,7 @@ private fun HomeScaffold(
                     onApproveChore = { chore -> choresViewModel.approveChore(chore, currentUser) },
                     onResetAssignment = choresViewModel::resetChoreAssignment,
                     onDeleteChore = choresViewModel::deleteChore,
+                    onSetUserGoal = choresViewModel::setUserGoal,
                     onClearMessage = choresViewModel::clearMessage,
                 )
             }
@@ -580,12 +717,14 @@ private fun ChoresScreen(
     onApproveChore: (Chore) -> Unit,
     onResetAssignment: (Chore) -> Unit,
     onDeleteChore: (Chore) -> Unit,
+    onSetUserGoal: (AppUser, Long?, Long?) -> Unit = { _, _, _ -> },
     onClearMessage: () -> Unit,
 ) {
     val strings = LocalAppStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
     var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
+    var userForGoalSetting by remember { mutableStateOf<AppUser?>(null) }
     val currentDate by produceState(initialValue = LocalDate.now()) {
         while (true) {
             val now = ZonedDateTime.now()
@@ -659,30 +798,49 @@ private fun ChoresScreen(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .background(
-                                                color = WorkHomeColors.RewardStar.copy(alpha = 0.15f),
-                                                shape = WorkHomeShapes.BadgeShape,
-                                            ),
-                                        contentAlignment = Alignment.Center,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Schedule,
-                                            contentDescription = null,
-                                            tint = WorkHomeColors.RewardStar,
-                                            modifier = Modifier.size(18.dp),
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .background(
+                                                    color = WorkHomeColors.RewardStar.copy(alpha = 0.15f),
+                                                    shape = WorkHomeShapes.BadgeShape,
+                                                ),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Schedule,
+                                                contentDescription = null,
+                                                tint = WorkHomeColors.RewardStar,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                        Text(
+                                            text = strings.totalMinutes,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = WorkHomeColors.SecondaryText,
                                         )
                                     }
-                                    Text(
-                                        text = strings.totalMinutes,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = WorkHomeColors.SecondaryText,
-                                    )
+                                    if (currentUser.isAdmin) {
+                                        IconButton(
+                                            onClick = { userForGoalSetting = currentUser },
+                                            modifier = Modifier.size(24.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Edit,
+                                                contentDescription = strings.setGoalTitle,
+                                                tint = WorkHomeColors.SecondaryText,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
+                                    }
                                 }
                                 Text(
                                     text = currentUser.rewardProgressText(),
@@ -694,6 +852,46 @@ private fun ChoresScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = WorkHomeColors.PrimaryText,
                                 )
+                                val accumulated = currentUser.accumulatedReward()
+                                val eligible = currentUser.rewardEligible
+                                if (eligible != null) {
+                                    HorizontalDivider(
+                                        color = WorkHomeColors.CardBorderBlue.copy(alpha = 0.3f),
+                                        modifier = Modifier.padding(vertical = 2.dp),
+                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = strings.accumulatedRewardLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = WorkHomeColors.SecondaryText,
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.Bottom,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = GoldCoinsIcon,
+                                                contentDescription = null,
+                                                tint = Color.Unspecified,
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .align(Alignment.CenterVertically),
+                                            )
+                                            Text(
+                                                text = "${accumulated ?: 0}",
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = WorkHomeColors.CyanAccent,
+                                            )
+                                            Text(
+                                                text = " / $eligible",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = WorkHomeColors.SecondaryText,
+                                                modifier = Modifier.padding(bottom = 2.dp),
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1399,6 +1597,17 @@ private fun ChoresScreen(
             },
         )
     }
+
+    userForGoalSetting?.let { user ->
+        SetGoalDialog(
+            user = user,
+            onConfirm = { goal, eligible ->
+                onSetUserGoal(user, goal, eligible)
+                userForGoalSetting = null
+            },
+            onDismiss = { userForGoalSetting = null },
+        )
+    }
 }
 
 internal fun daysLeftInCurrentMonth(date: LocalDate = LocalDate.now()): Int = date.lengthOfMonth() - date.dayOfMonth
@@ -1790,7 +1999,7 @@ private fun UsersScreen(
     onEmailChange: (String) -> Unit,
     onRoleChange: (UserRole) -> Unit,
     onAddUser: () -> Unit,
-    onSetUserGoal: (AppUser, Long?) -> Unit,
+    onSetUserGoal: (AppUser, Long?, Long?) -> Unit,
     onRemoveUser: (AppUser) -> Unit,
     onRemovePendingUser: (PendingUser) -> Unit,
     onClearMessage: () -> Unit,
@@ -1836,10 +2045,41 @@ private fun UsersScreen(
                         Text(user.name, fontWeight = FontWeight.Bold)
                         Text(user.email)
                         Text("Role: ${user.role.value}")
-                        Text("Goal: ${user.rewardGoal?.let { "$it" } ?: "Not set"}")
+                        Text("Goal: ${user.rewardGoal?.let { "$it min" } ?: "Not set"}")
+                        val accumulated = user.accumulatedReward()
+                        val eligible = user.rewardEligible
+                        if (eligible != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = "${LocalAppStrings.current.accumulatedRewardLabel}: ",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = WorkHomeColors.SecondaryText,
+                                )
+                                Icon(
+                                    imageVector = GoldCoinsIcon,
+                                    contentDescription = null,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    text = "${accumulated ?: 0}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WorkHomeColors.PrimaryText,
+                                )
+                                Text(
+                                    text = " / $eligible",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = WorkHomeColors.SecondaryText,
+                                )
+                            }
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { userForGoalSetting = user }, enabled = !state.submitting) {
-                                Text("Set goal")
+                                Text(LocalAppStrings.current.setGoalTitle)
                             }
                             OutlinedButton(onClick = { userToRemove = user }, enabled = !state.submitting) {
                                 Text("Remove profile")
@@ -1892,8 +2132,8 @@ private fun UsersScreen(
     userForGoalSetting?.let { user ->
         SetGoalDialog(
             user = user,
-            onConfirm = { goal ->
-                onSetUserGoal(user, goal)
+            onConfirm = { goal, eligible ->
+                onSetUserGoal(user, goal, eligible)
                 userForGoalSetting = null
             },
             onDismiss = { userForGoalSetting = null },
@@ -1920,7 +2160,7 @@ private fun RowRoles(
 private fun RewardsScreen(
     state: RewardsUiState,
     onResetRewards: () -> Unit,
-    onSetUserGoal: (AppUser, Long?) -> Unit = { _, _ -> },
+    onSetUserGoal: (AppUser, Long?, Long?) -> Unit = { _, _, _ -> },
     onClearMessage: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -1972,11 +2212,42 @@ private fun RewardsScreen(
                             Text(user.name, fontWeight = FontWeight.Bold)
                             if (state.currentUser.isAdmin) {
                                 TextButton(onClick = { userForGoalSetting = user }) {
-                                    Text("Set goal")
+                                    Text(LocalAppStrings.current.setGoalTitle)
                                 }
                             }
                         }
                         Text("Total minutes: ${user.rewardProgressText()}")
+                        val accumulated = user.accumulatedReward()
+                        val eligible = user.rewardEligible
+                        if (eligible != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = "${LocalAppStrings.current.accumulatedRewardLabel}: ",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = WorkHomeColors.SecondaryText,
+                                )
+                                Icon(
+                                    imageVector = GoldCoinsIcon,
+                                    contentDescription = null,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    text = "${accumulated ?: 0}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WorkHomeColors.PrimaryText,
+                                )
+                                Text(
+                                    text = " / $eligible",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = WorkHomeColors.SecondaryText,
+                                )
+                            }
+                        }
                         Text("Days since last completed chore: $daysText")
                     }
                 }
@@ -1999,8 +2270,8 @@ private fun RewardsScreen(
     userForGoalSetting?.let { user ->
         SetGoalDialog(
             user = user,
-            onConfirm = { goal ->
-                onSetUserGoal(user, goal)
+            onConfirm = { goal, eligible ->
+                onSetUserGoal(user, goal, eligible)
                 userForGoalSetting = null
             },
             onDismiss = { userForGoalSetting = null },
@@ -2037,31 +2308,45 @@ private fun ConfirmDialog(
 @Composable
 private fun SetGoalDialog(
     user: AppUser,
-    onConfirm: (Long?) -> Unit,
+    onConfirm: (goal: Long?, rewardEligible: Long?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val strings = LocalAppStrings.current
     var goalText by remember { mutableStateOf(user.rewardGoal?.toString().orEmpty()) }
+    var eligibleText by remember { mutableStateOf(user.rewardEligible?.toString().orEmpty()) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set minutes goal") },
+        title = { Text(strings.setGoalTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Set target minutes goal for ${user.name}:")
+                Text("${strings.setGoalTitle} for ${user.name}:")
                 OutlinedTextField(
                     value = goalText,
                     onValueChange = { input ->
                         goalText = input.filter { it.isDigit() }
                         errorText = null
                     },
-                    label = { Text(strings.rewardMinutes) },
+                    label = { Text(strings.targetMinutesGoal) },
                     placeholder = { Text("e.g. 500") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = errorText != null,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = eligibleText,
+                    onValueChange = { input ->
+                        eligibleText = input.filter { it.isDigit() }
+                        errorText = null
+                    },
+                    label = { Text(strings.totalRewardEligible) },
+                    placeholder = { Text(strings.rewardEligiblePlaceholder) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = errorText != null,
                     supportingText = {
-                        Text(errorText ?: "Leave empty to clear goal")
+                        Text(errorText ?: "Leave empty to clear")
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -2071,15 +2356,14 @@ private fun SetGoalDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (goalText.isBlank()) {
-                        onConfirm(null)
+                    val parsedGoal = if (goalText.isBlank()) null else goalText.toLongOrNull()
+                    val parsedEligible = if (eligibleText.isBlank()) null else eligibleText.toLongOrNull()
+                    if (goalText.isNotBlank() && (parsedGoal == null || parsedGoal <= 0)) {
+                        errorText = "Enter a valid positive number for minutes goal"
+                    } else if (eligibleText.isNotBlank() && (parsedEligible == null || parsedEligible <= 0)) {
+                        errorText = "Enter a valid positive number for reward eligible"
                     } else {
-                        val parsed = goalText.toLongOrNull()
-                        if (parsed == null || parsed <= 0) {
-                            errorText = "Enter a valid positive number"
-                        } else {
-                            onConfirm(parsed)
-                        }
+                        onConfirm(parsedGoal, parsedEligible)
                     }
                 },
             ) {
