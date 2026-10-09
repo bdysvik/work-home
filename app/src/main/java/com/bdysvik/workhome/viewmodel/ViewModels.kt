@@ -436,6 +436,7 @@ class ChoresViewModel(
             val result = runCatching { familyRepository.completeChore(chore, _uiState.value.currentUser) }
             _uiState.update {
                 it.copy(
+                    chores = if (result.isSuccess) it.chores.filterNot { c -> c.id == chore.id } else it.chores,
                     busyChoreActions = it.busyChoreActions - chore.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Minutes added." else null,
                 )
@@ -464,6 +465,7 @@ class ChoresViewModel(
             }
             _uiState.update {
                 it.copy(
+                    chores = if (result.isSuccess) it.chores.filterNot { c -> c.id == chore.id } else it.chores,
                     busyChoreActions = it.busyChoreActions - chore.id,
                     message = error?.localizedMessage
                         ?: if (result.isSuccess) "Chore approved and minutes added!" else null,
@@ -484,6 +486,7 @@ class ChoresViewModel(
             val result = runCatching { familyRepository.deleteChore(chore.id) }
             _uiState.update {
                 it.copy(
+                    chores = if (result.isSuccess) it.chores.filterNot { c -> c.id == chore.id } else it.chores,
                     busyChoreActions = it.busyChoreActions - chore.id,
                     message = result.exceptionOrNull()?.localizedMessage ?: if (result.isSuccess) "Chore deleted." else null,
                 )
