@@ -741,6 +741,11 @@ private fun ChoresScreen(
         .groupBy { completion -> completion.completedAtMillis?.let(::yearMonthFromEpochMillis) }
         .entries
         .sortedByDescending { it.key }
+    val activeChores = remember(state.chores, state.completedChores) {
+        state.chores.filterNot { chore ->
+            state.completedChores.any { it.choreId == chore.id }
+        }
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -756,9 +761,9 @@ private fun ChoresScreen(
         }
     }
 
-    LaunchedEffect(choreToDelete?.id, state.chores) {
+    LaunchedEffect(choreToDelete?.id, activeChores) {
         val choreId = choreToDelete?.id ?: return@LaunchedEffect
-        if (state.chores.none { it.id == choreId }) {
+        if (activeChores.none { it.id == choreId }) {
             choreToDelete = null
         }
     }
@@ -968,7 +973,7 @@ private fun ChoresScreen(
                         border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
                     ) {
                         Text(
-                            text = strings.tasksCount(state.chores.size),
+                            text = strings.tasksCount(activeChores.size),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = WorkHomeColors.CyanAccent,
@@ -1121,7 +1126,7 @@ private fun ChoresScreen(
                 }
             }
 
-            if (state.chores.isEmpty()) {
+            if (activeChores.isEmpty()) {
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -1145,14 +1150,11 @@ private fun ChoresScreen(
                 }
             }
 
-            items(state.chores, key = { it.id }) { chore ->
+            items(activeChores, key = { it.id }) { chore ->
                 val busyAction = state.busyChoreActions[chore.id]
                 val isOpen = chore.assignedToUserId.isBlank()
                 val isAssignedToCurrentUser = chore.assignedToUserId == currentUser.authUid
                 val assigneeName = state.usersByAuthUid[chore.assignedToUserId]
-                val isCompletedThisMonth = state.completedChores.any {
-                    it.choreId == chore.id && it.userId == currentUser.authUid
-                }
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = WorkHomeShapes.CardShape,
@@ -1319,82 +1321,53 @@ private fun ChoresScreen(
                                 }
 
                                 isAssignedToCurrentUser -> {
-                                    if (isCompletedThisMonth) {
-                                        Surface(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = WorkHomeShapes.PillShape,
-                                            color = Color(0xFF0E2E44),
-                                            border = BorderStroke(1.dp, WorkHomeColors.CyanAccent.copy(alpha = 0.5f)),
+                                    Button(
+                                        onClick = { onCompleteChore(chore) },
+                                        enabled = busyAction == null,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp),
+                                        shape = WorkHomeShapes.PillShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.Transparent,
+                                            disabledContainerColor = Color(0x332979FF),
+                                        ),
+                                        contentPadding = PaddingValues(),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .then(
+                                                    if (busyAction == null) {
+                                                        Modifier.background(
+                                                            brush = WorkHomeColors.CompleteButtonGradient,
+                                                            shape = WorkHomeShapes.PillShape,
+                                                        )
+                                                    } else {
+                                                        Modifier.background(
+                                                            color = Color(0x442979FF),
+                                                            shape = WorkHomeShapes.PillShape,
+                                                        )
+                                                    }
+                                                ),
+                                            contentAlignment = Alignment.Center,
                                         ) {
                                             Row(
-                                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-                                                horizontalArrangement = Arrangement.Center,
                                                 verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Filled.CheckCircle,
+                                                    imageVector = Icons.Filled.Check,
                                                     contentDescription = null,
-                                                    tint = WorkHomeColors.CyanAccent,
-                                                    modifier = Modifier.size(18.dp),
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp),
                                                 )
-                                                Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
-                                                    text = strings.completedThisMonth,
+                                                    text = if (busyAction == ChoreRowAction.COMPLETE) strings.completing else strings.completeForMe,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
                                                     style = MaterialTheme.typography.bodyMedium,
-                                                    color = WorkHomeColors.CyanAccent,
-                                                    fontWeight = FontWeight.SemiBold,
                                                 )
-                                            }
-                                        }
-                                    } else {
-                                        Button(
-                                            onClick = { onCompleteChore(chore) },
-                                            enabled = busyAction == null,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(50.dp),
-                                            shape = WorkHomeShapes.PillShape,
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color.Transparent,
-                                                disabledContainerColor = Color(0x332979FF),
-                                            ),
-                                            contentPadding = PaddingValues(),
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .then(
-                                                        if (busyAction == null) {
-                                                            Modifier.background(
-                                                                brush = WorkHomeColors.CompleteButtonGradient,
-                                                                shape = WorkHomeShapes.PillShape,
-                                                            )
-                                                        } else {
-                                                            Modifier.background(
-                                                                color = Color(0x442979FF),
-                                                                shape = WorkHomeShapes.PillShape,
-                                                            )
-                                                        }
-                                                    ),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Check,
-                                                        contentDescription = null,
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(20.dp),
-                                                    )
-                                                    Text(
-                                                        text = if (busyAction == ChoreRowAction.COMPLETE) strings.completing else strings.completeForMe,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color.White,
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                    )
-                                                }
                                             }
                                         }
                                     }
