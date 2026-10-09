@@ -447,6 +447,7 @@ class FirebaseFamilyRepository(
                     "lastCompletedAt" to FieldValue.serverTimestamp(),
                 ),
             )
+            transaction.delete(choreRef)
             null
         }.await()
     }
@@ -531,15 +532,7 @@ class FirebaseFamilyRepository(
                     ),
                 )
             }
-            transaction.update(
-                choreRef,
-                mapOf(
-                    "active" to false,
-                    "awaitingApproval" to false,
-                    "approvedAt" to FieldValue.serverTimestamp(),
-                    "approvedBy" to admin.authUid,
-                ),
-            )
+            transaction.delete(choreRef)
             null
         }.await()
     }
