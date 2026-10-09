@@ -85,7 +85,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
@@ -343,6 +346,42 @@ fun WorkHomeApp(
     }
 }
 
+private fun AppUser.fuseProgress(): Float {
+    val goal = rewardGoal
+    return if (goal != null && goal > 0) (currentRewardTotal.toFloat() / goal).coerceIn(0f, 1f) else 0f
+}
+
+@Composable
+private fun FuseProgressLine(progress: Float) {
+    val burnt = Color(0xFF3A3A3A)
+    val fuse = Color(0xFFD7B98E)
+    val spark = Color(0xFFFFB300)
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp),
+    ) {
+        val capR = 2.5.dp.toPx()
+        val startX = capR
+        val endX = size.width - capR
+        val y = size.height / 2
+        val sparkX = startX + (endX - startX) * progress
+        val stroke = 2.dp.toPx()
+        // burnt part
+        drawLine(burnt, Offset(startX, y), Offset(sparkX, y), strokeWidth = stroke, cap = StrokeCap.Round)
+        // remaining fuse
+        if (progress < 1f) {
+            drawLine(fuse, Offset(sparkX, y), Offset(endX, y), strokeWidth = stroke, cap = StrokeCap.Round)
+        }
+        // clear start and end markers
+        drawCircle(burnt, radius = capR, center = Offset(startX, y))
+        drawCircle(if (progress >= 1f) spark else fuse, radius = capR, center = Offset(endX, y))
+        // burning spark
+        drawCircle(spark.copy(alpha = 0.35f), radius = capR + 1.dp.toPx(), center = Offset(sparkX, y))
+        drawCircle(spark, radius = 2.dp.toPx(), center = Offset(sparkX, y))
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScaffold(
@@ -385,6 +424,8 @@ private fun HomeScaffold(
         containerColor = WorkHomeColors.Background,
         contentColor = WorkHomeColors.PrimaryText,
         topBar = {
+            Column {
+            FuseProgressLine(progress = currentUser.fuseProgress())
             TopAppBar(
                 title = {
                     Text(
@@ -412,6 +453,7 @@ private fun HomeScaffold(
                     actionIconContentColor = WorkHomeColors.SecondaryText,
                 ),
             )
+            }
         },
         bottomBar = {
             Surface(
