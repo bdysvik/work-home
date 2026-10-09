@@ -86,8 +86,10 @@ service cloud.firestore {
       allow create: if isAdmin() || isValidCustomChoreCreation();
       allow delete: if isAdmin() || (
         isSignedIn()
-        && resource.data.createdBy == request.auth.uid
-        && resource.data.awaitingApproval == true
+        && (
+          (resource.data.createdBy == request.auth.uid && resource.data.awaitingApproval == true) ||
+          resource.data.assignedTo == request.auth.uid
+        )
       );
       allow update: if isAdmin() || isValidSelfAssignment();
     }
