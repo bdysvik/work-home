@@ -143,6 +143,7 @@ import kotlinx.coroutines.delay
 
 private object Routes {
     const val Chores = "chores"
+    const val Templates = "templates"
     const val CreateChore = "create_chore"
     const val Rewards = "rewards"
     const val Users = "users"
@@ -374,6 +375,7 @@ private fun HomeScaffold(
     val currentRoute = backStackEntry?.destination?.route ?: Routes.Chores
     val navItems = buildList {
         add(Routes.Chores to strings.navChores)
+        if (currentUser.isAdmin) add(Routes.Templates to strings.navTemplates)
         add(Routes.CreateChore to strings.navAddChore)
         add(Routes.Rewards to strings.navMinutes)
         if (currentUser.isAdmin) add(Routes.Users to strings.navUsers)
@@ -490,14 +492,6 @@ private fun HomeScaffold(
                 ChoresScreen(
                     currentUser = currentUser,
                     state = choresState,
-                    onTemplateTitleChange = choresViewModel::updateTemplateTitle,
-                    onTemplateRewardChange = choresViewModel::updateTemplateReward,
-                    onTemplateRepeatIntervalChange = choresViewModel::updateTemplateRepeatInterval,
-                    onSaveTemplate = choresViewModel::saveTemplate,
-                    onEditTemplate = choresViewModel::editTemplate,
-                    onCancelTemplateEdit = choresViewModel::cancelTemplateEdit,
-                    onActivateTemplate = choresViewModel::activateTemplate,
-                    onDeleteTemplate = choresViewModel::deleteTemplate,
                     onAssignChore = choresViewModel::assignChore,
                     onCompleteChore = choresViewModel::completeChore,
                     onApproveChore = { chore -> choresViewModel.approveChore(chore, currentUser) },
@@ -506,6 +500,22 @@ private fun HomeScaffold(
                     onSetUserGoal = choresViewModel::setUserGoal,
                     onClearMessage = choresViewModel::clearMessage,
                 )
+            }
+            if (currentUser.isAdmin) {
+                composable(Routes.Templates) {
+                    TemplatesScreen(
+                        state = choresState,
+                        onTemplateTitleChange = choresViewModel::updateTemplateTitle,
+                        onTemplateRewardChange = choresViewModel::updateTemplateReward,
+                        onTemplateRepeatIntervalChange = choresViewModel::updateTemplateRepeatInterval,
+                        onSaveTemplate = choresViewModel::saveTemplate,
+                        onEditTemplate = choresViewModel::editTemplate,
+                        onCancelTemplateEdit = choresViewModel::cancelTemplateEdit,
+                        onActivateTemplate = choresViewModel::activateTemplate,
+                        onDeleteTemplate = choresViewModel::deleteTemplate,
+                        onClearMessage = choresViewModel::clearMessage,
+                    )
+                }
             }
             composable(Routes.CreateChore) {
                 CreateChoreScreen(
@@ -704,14 +714,6 @@ private fun LoginScreen(
 private fun ChoresScreen(
     currentUser: AppUser,
     state: ChoresUiState,
-    onTemplateTitleChange: (String) -> Unit,
-    onTemplateRewardChange: (String) -> Unit,
-    onTemplateRepeatIntervalChange: (Int?) -> Unit,
-    onSaveTemplate: () -> Unit,
-    onEditTemplate: (ChoreTemplate) -> Unit,
-    onCancelTemplateEdit: () -> Unit,
-    onActivateTemplate: (ChoreTemplate) -> Unit,
-    onDeleteTemplate: (ChoreTemplate) -> Unit,
     onAssignChore: (Chore) -> Unit,
     onCompleteChore: (Chore) -> Unit,
     onApproveChore: (Chore) -> Unit,
@@ -723,7 +725,6 @@ private fun ChoresScreen(
     val strings = LocalAppStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
     var choreToDelete by remember { mutableStateOf<Chore?>(null) }
-    var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
     var userForGoalSetting by remember { mutableStateOf<AppUser?>(null) }
     val currentDate by produceState(initialValue = LocalDate.now()) {
         while (true) {
@@ -754,21 +755,12 @@ private fun ChoresScreen(
         }
     }
 
-    LaunchedEffect(templateToDelete?.id, state.choreTemplates) {
-        val templateId = templateToDelete?.id ?: return@LaunchedEffect
-        if (state.choreTemplates.none { it.id == templateId }) {
-            templateToDelete = null
-        }
-    }
-
     LaunchedEffect(choreToDelete?.id, activeChores) {
         val choreId = choreToDelete?.id ?: return@LaunchedEffect
         if (activeChores.none { it.id == choreId }) {
             choreToDelete = null
         }
     }
-
-    val templateFormEnabled = !state.templateFormSubmitting && state.busyTemplateActions.isEmpty()
 
     Scaffold(
         containerColor = WorkHomeColors.Background,
@@ -978,149 +970,6 @@ private fun ChoresScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = WorkHomeColors.CyanAccent,
                             fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-            }
-
-            if (currentUser.isAdmin) {
-
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = WorkHomeShapes.CardShape,
-                        color = WorkHomeColors.CardBackground,
-                        border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
-                        shadowElevation = 2.dp,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(WorkHomeColors.CardGradient)
-                                .padding(WorkHomeDimens.CardPadding),
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = if (state.editingTemplateId == null) strings.saveTemplateHeader else strings.editTemplateHeader,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WorkHomeColors.PrimaryText,
-                                )
-                                OutlinedTextField(
-                                    value = state.templateTitle,
-                                    onValueChange = onTemplateTitleChange,
-                                    label = { Text(strings.templateTitleLabel) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = templateFormEnabled,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = WorkHomeColors.CyanAccent,
-                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
-                                        focusedLabelColor = WorkHomeColors.CyanAccent,
-                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
-                                        focusedTextColor = WorkHomeColors.PrimaryText,
-                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
-                                        cursorColor = WorkHomeColors.CyanAccent,
-                                    ),
-                                )
-                                OutlinedTextField(
-                                    value = state.templateRewardText,
-                                    onValueChange = onTemplateRewardChange,
-                                    label = { Text(strings.templateRewardLabel) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    enabled = templateFormEnabled,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = WorkHomeColors.CyanAccent,
-                                        unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
-                                        focusedLabelColor = WorkHomeColors.CyanAccent,
-                                        unfocusedLabelColor = WorkHomeColors.SecondaryText,
-                                        focusedTextColor = WorkHomeColors.PrimaryText,
-                                        unfocusedTextColor = WorkHomeColors.PrimaryText,
-                                        cursorColor = WorkHomeColors.CyanAccent,
-                                    ),
-                                )
-                                Text(
-                                    text = strings.autoCreationSchedule,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = WorkHomeColors.SecondaryText,
-                                )
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    val options = listOf(
-                                        null to strings.recurrenceManual,
-                                        1 to strings.recurrenceDaily,
-                                        2 to strings.recurrenceTwoDays,
-                                        3 to strings.recurrenceThreeDays,
-                                        7 to strings.recurrenceWeekly,
-                                    )
-                                    options.forEach { (days, label) ->
-                                        FilterChip(
-                                            selected = state.templateRepeatIntervalDays == days,
-                                            onClick = { onTemplateRepeatIntervalChange(days) },
-                                            label = { Text(label) },
-                                            enabled = templateFormEnabled,
-                                            colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = WorkHomeColors.CyanAccent.copy(alpha = 0.2f),
-                                                selectedLabelColor = WorkHomeColors.CyanAccent,
-                                                labelColor = WorkHomeColors.SecondaryText,
-                                            ),
-                                        )
-                                    }
-                                }
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Button(
-                                        onClick = onSaveTemplate,
-                                        enabled = templateFormEnabled,
-                                        shape = WorkHomeShapes.PillShape,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = WorkHomeColors.PrimaryBlue,
-                                            contentColor = Color.White,
-                                        ),
-                                    ) {
-                                        Text(if (state.editingTemplateId == null) strings.saveTemplateButton else strings.updateTemplateButton)
-                                    }
-                                    if (state.editingTemplateId != null) {
-                                        OutlinedButton(
-                                            onClick = onCancelTemplateEdit,
-                                            enabled = templateFormEnabled,
-                                            shape = WorkHomeShapes.PillShape,
-                                            border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
-                                        ) {
-                                            Text(strings.cancelEdit)
-                                        }
-                                    }
-                                }
-                                if (state.templateFormSubmitting) {
-                                    Text(strings.savingTemplate, color = WorkHomeColors.SecondaryText, style = MaterialTheme.typography.bodySmall)
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = WorkHomeColors.CyanAccent)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (state.choreTemplates.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = strings.choreTemplates,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = WorkHomeColors.PrimaryText,
-                        )
-                    }
-                    items(state.choreTemplates, key = { it.id }) { template ->
-                        ChoreTemplateRow(
-                            template = template,
-                            templateFormSubmitting = state.templateFormSubmitting,
-                            busyAction = state.busyTemplateActions[template.id],
-                            onEditTemplate = onEditTemplate,
-                            onActivateTemplate = onActivateTemplate,
-                            onDeleteTemplate = { templateToDelete = it },
                         )
                     }
                 }
@@ -1532,6 +1381,205 @@ private fun ChoresScreen(
         )
     }
 
+    userForGoalSetting?.let { user ->
+        SetGoalDialog(
+            user = user,
+            onConfirm = { goal, eligible ->
+                onSetUserGoal(user, goal, eligible)
+                userForGoalSetting = null
+            },
+            onDismiss = { userForGoalSetting = null },
+        )
+    }
+}
+
+@Composable
+private fun TemplatesScreen(
+    state: ChoresUiState,
+    onTemplateTitleChange: (String) -> Unit,
+    onTemplateRewardChange: (String) -> Unit,
+    onTemplateRepeatIntervalChange: (Int?) -> Unit,
+    onSaveTemplate: () -> Unit,
+    onEditTemplate: (ChoreTemplate) -> Unit,
+    onCancelTemplateEdit: () -> Unit,
+    onActivateTemplate: (ChoreTemplate) -> Unit,
+    onDeleteTemplate: (ChoreTemplate) -> Unit,
+    onClearMessage: () -> Unit,
+) {
+    val strings = LocalAppStrings.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    var templateToDelete by remember { mutableStateOf<ChoreTemplate?>(null) }
+    val templateFormEnabled = !state.templateFormSubmitting && state.busyTemplateActions.isEmpty()
+
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHostState.showSnackbar(it)
+            onClearMessage()
+        }
+    }
+
+    LaunchedEffect(templateToDelete?.id, state.choreTemplates) {
+        val templateId = templateToDelete?.id ?: return@LaunchedEffect
+        if (state.choreTemplates.none { it.id == templateId }) {
+            templateToDelete = null
+        }
+    }
+
+    Scaffold(
+        containerColor = WorkHomeColors.Background,
+        contentColor = WorkHomeColors.PrimaryText,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = WorkHomeDimens.ScreenHorizontalPadding),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(WorkHomeDimens.SpacingBetweenCards),
+        ) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = WorkHomeShapes.CardShape,
+                    color = WorkHomeColors.CardBackground,
+                    border = BorderStroke(1.dp, WorkHomeColors.CardBorderBrush),
+                    shadowElevation = 2.dp,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(WorkHomeColors.CardGradient)
+                            .padding(WorkHomeDimens.CardPadding),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = if (state.editingTemplateId == null) strings.saveTemplateHeader else strings.editTemplateHeader,
+                                fontWeight = FontWeight.Bold,
+                                color = WorkHomeColors.PrimaryText,
+                            )
+                            OutlinedTextField(
+                                value = state.templateTitle,
+                                onValueChange = onTemplateTitleChange,
+                                label = { Text(strings.templateTitleLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = templateFormEnabled,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = WorkHomeColors.CyanAccent,
+                                    unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                    focusedLabelColor = WorkHomeColors.CyanAccent,
+                                    unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                    focusedTextColor = WorkHomeColors.PrimaryText,
+                                    unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                    cursorColor = WorkHomeColors.CyanAccent,
+                                ),
+                            )
+                            OutlinedTextField(
+                                value = state.templateRewardText,
+                                onValueChange = onTemplateRewardChange,
+                                label = { Text(strings.templateRewardLabel) },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = templateFormEnabled,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = WorkHomeColors.CyanAccent,
+                                    unfocusedBorderColor = WorkHomeColors.CardBorderBlue,
+                                    focusedLabelColor = WorkHomeColors.CyanAccent,
+                                    unfocusedLabelColor = WorkHomeColors.SecondaryText,
+                                    focusedTextColor = WorkHomeColors.PrimaryText,
+                                    unfocusedTextColor = WorkHomeColors.PrimaryText,
+                                    cursorColor = WorkHomeColors.CyanAccent,
+                                ),
+                            )
+                            Text(
+                                text = strings.autoCreationSchedule,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = WorkHomeColors.SecondaryText,
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                val options = listOf(
+                                    null to strings.recurrenceManual,
+                                    1 to strings.recurrenceDaily,
+                                    2 to strings.recurrenceTwoDays,
+                                    3 to strings.recurrenceThreeDays,
+                                    7 to strings.recurrenceWeekly,
+                                )
+                                options.forEach { (days, label) ->
+                                    FilterChip(
+                                        selected = state.templateRepeatIntervalDays == days,
+                                        onClick = { onTemplateRepeatIntervalChange(days) },
+                                        label = { Text(label) },
+                                        enabled = templateFormEnabled,
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = WorkHomeColors.CyanAccent.copy(alpha = 0.2f),
+                                            selectedLabelColor = WorkHomeColors.CyanAccent,
+                                            labelColor = WorkHomeColors.SecondaryText,
+                                        ),
+                                    )
+                                }
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Button(
+                                    onClick = onSaveTemplate,
+                                    enabled = templateFormEnabled,
+                                    shape = WorkHomeShapes.PillShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = WorkHomeColors.PrimaryBlue,
+                                        contentColor = Color.White,
+                                    ),
+                                ) {
+                                    Text(if (state.editingTemplateId == null) strings.saveTemplateButton else strings.updateTemplateButton)
+                                }
+                                if (state.editingTemplateId != null) {
+                                    OutlinedButton(
+                                        onClick = onCancelTemplateEdit,
+                                        enabled = templateFormEnabled,
+                                        shape = WorkHomeShapes.PillShape,
+                                        border = BorderStroke(1.dp, WorkHomeColors.CardBorder),
+                                    ) {
+                                        Text(strings.cancelEdit)
+                                    }
+                                }
+                            }
+                            if (state.templateFormSubmitting) {
+                                Text(strings.savingTemplate, color = WorkHomeColors.SecondaryText, style = MaterialTheme.typography.bodySmall)
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = WorkHomeColors.CyanAccent)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (state.choreTemplates.isNotEmpty()) {
+                item {
+                    Text(
+                        text = strings.choreTemplates,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WorkHomeColors.PrimaryText,
+                    )
+                }
+                items(state.choreTemplates, key = { it.id }) { template ->
+                    ChoreTemplateRow(
+                        template = template,
+                        templateFormSubmitting = state.templateFormSubmitting,
+                        busyAction = state.busyTemplateActions[template.id],
+                        onEditTemplate = onEditTemplate,
+                        onActivateTemplate = onActivateTemplate,
+                        onDeleteTemplate = { templateToDelete = it },
+                    )
+                }
+            }
+        }
+    }
+
     templateToDelete?.let { template ->
         val templateDeleteBusy = state.busyTemplateActions[template.id] == TemplateRowAction.DELETE
         AlertDialog(
@@ -1568,17 +1616,6 @@ private fun ChoresScreen(
                     }
                 }
             },
-        )
-    }
-
-    userForGoalSetting?.let { user ->
-        SetGoalDialog(
-            user = user,
-            onConfirm = { goal, eligible ->
-                onSetUserGoal(user, goal, eligible)
-                userForGoalSetting = null
-            },
-            onDismiss = { userForGoalSetting = null },
         )
     }
 }

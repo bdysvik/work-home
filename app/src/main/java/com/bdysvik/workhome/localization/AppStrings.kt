@@ -31,6 +31,7 @@ interface AppStrings {
 
     // Navigation
     val navChores: String
+    val navTemplates: String
     val navAddChore: String
     val navMinutes: String
     val navUsers: String
@@ -192,6 +193,7 @@ object EnglishStrings : AppStrings {
     override val profileNotFoundDefaultBody = "Your Firebase account is signed in, but no matching Firestore family profile exists yet. Ask an admin to add an invite for your email, or manually create the first admin profile in Firestore."
 
     override val navChores = "Chores"
+    override val navTemplates = "Templates"
     override val navAddChore = "Add chore"
     override val navMinutes = "Minutes"
     override val navUsers = "Users"
@@ -340,6 +342,7 @@ object NorwegianStrings : AppStrings {
     override val profileNotFoundDefaultBody = "Firebase-kontoen din er logget inn, men det finnes ingen tilsvarende Firestore-familieprofil ennå. Be en administrator om en invitasjon for din e-post, eller opprett den første administratorprofilen manuelt i Firestore."
 
     override val navChores = "Gjøremål"
+    override val navTemplates = "Maler"
     override val navAddChore = "Legg til"
     override val navMinutes = "Minutter"
     override val navUsers = "Brukere"
